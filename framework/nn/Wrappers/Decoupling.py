@@ -24,7 +24,7 @@ class Decoupling(BaseModel):
             base_dir: str = '../../',
             ) -> None:
         
-        BaseModel.__init__(
+        super().__init__(
             model_name = 'Decoupling',
             dataset = dataset,
             device = device,
