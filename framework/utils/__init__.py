@@ -1,12 +1,18 @@
 import importlib
-import numpy as np
 import os
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+import sklearn
 from sklearn.metrics import f1_score
+
+import numpy as np
+import scipy.sparse as sp
+
+import os.path as osp
+
 
 def source_import(file_path):
     """This function imports python module directly from source code using importlib"""
@@ -28,6 +34,14 @@ def special_mkdir(root, name):
 
     if name not in os.listdir(root):
         os.mkdir(f'{root}/{name}')
+
+def create_dirs(dirs):
+    for dir_tree in dirs:
+        sub_dirs = dir_tree.split("/")
+        path = ""
+        for sub_dir in sub_dirs:
+            path = osp.join(path, sub_dir)
+            os.makedirs(path, exist_ok=True)
 
 def torch2numpy(x):
     if isinstance(x, torch.Tensor):
@@ -183,4 +197,49 @@ def init_weights(model, weights_path, caffe=False, classifier=False):
                    for k in model.state_dict()}
     model.load_state_dict(weights)   
     return model
+
+def normalize(mx):
+    rowsum = np.array(mx.sum(1))
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = sp.diags(r_inv)
+    mx = r_mat_inv.dot(mx)
+    return mx
+
+def normalize_sp_adj(adj):
+    """Symmetrically normalize adjacency matrix."""
+    adj = sp.coo_matrix(adj)
+    rowsum = np.array(adj.sum(1))
+    d_inv_sqrt = np.power(rowsum, -0.5).flatten()
+    d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
+    d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+    return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
+
+
+def accuracy(output, labels, output_AUC):
+    preds = output.max(1)[1].type_as(labels)
+
+
+    recall = sklearn.metrics.recall_score(labels.cpu().numpy(), preds.cpu().numpy())
+    f1_score = sklearn.metrics.f1_score(labels.cpu().numpy(), preds.cpu().numpy())
+    AUC = sklearn.metrics.roc_auc_score(labels.cpu().numpy(), output_AUC.detach().cpu().numpy())
+    acc = sklearn.metrics.accuracy_score(labels.cpu().numpy(), preds.cpu().numpy())
+    precision = sklearn.metrics.precision_score(labels.cpu().numpy(), preds.cpu().numpy())
+    return recall, f1_score, AUC, acc, precision
+
+
+def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
+
+def add_edges(adj_real, adj_new):
+    adj = adj_real+adj_new
+    adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
+    adj = normalize(adj + sp.eye(adj.shape[0]))
+    adj = sparse_mx_to_torch_sparse_tensor(adj)
+    return adj
 
