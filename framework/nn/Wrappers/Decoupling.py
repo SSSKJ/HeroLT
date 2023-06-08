@@ -126,6 +126,7 @@ class Decoupling(BaseModel):
                     for x in splits}
             
             self.__testing_data = data
+            self.data = data
         
         return data
     
