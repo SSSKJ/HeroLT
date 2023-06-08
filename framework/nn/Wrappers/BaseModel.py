@@ -1,7 +1,7 @@
 import yaml
 import os
 
-import datasets
+import data
 from utils import special_mkdir
 
 class BaseModel:
@@ -15,7 +15,7 @@ class BaseModel:
             ) -> None:
         
         self.model_name = model_name
-        if dataset_name.lower() not in datasets.datasets:
+        if dataset_name.lower() not in data.dataset_list:
             raise RuntimeError(f'Dataset {dataset_name} not match')
         self.dataset_name = dataset_name
         self.base_dir = base_dir
