@@ -1,6 +1,6 @@
 from BaseModel import BaseModel
 from utils import *
-from Models import GCN, Generator
+from Models import GCN, ImGAGN_Generator
 from tools.loaders import Graph_loader
 
 import torch.optim as optim
@@ -38,7 +38,7 @@ class ImGAGN(BaseModel):
             generate_node = self.generate_node,
             min_node = self.minority)
         
-        self.model_generator = Generator(self.minority_all.shape[0])
+        self.model_generator = ImGAGN_Generator(self.minority_all.shape[0])
         
     def __init_optimizer_and_scheduler(self):
 
