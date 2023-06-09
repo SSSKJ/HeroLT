@@ -20,14 +20,12 @@ class Decoupling(BaseModel):
     def __init__(
             self,
             dataset: str,
-            device: str,
             base_dir: str = '../../',
             ) -> None:
         
         super().__init__(
             model_name = 'Decoupling',
             dataset = dataset,
-            device = device,
             base_dir = base_dir)
         
         self.__load_config()
@@ -42,6 +40,8 @@ class Decoupling(BaseModel):
         
         # Initialize model
         self.__init_model()
+        # Initialize optimizer and scheduler
+        self.__init_optimizer_and_scheduler()
         
         # Under training mode, initialize training steps, optimizers, schedulers, criterions, and centroids
         # If using steps for training, we need to calculate training steps 
@@ -51,6 +51,7 @@ class Decoupling(BaseModel):
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num / self.training_opt['batch_size'])
 
+    def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
         print('Initializing model optimizer.')
         self.scheduler_params = self.training_opt['scheduler_params']
@@ -261,7 +262,8 @@ class Decoupling(BaseModel):
         return x, y
     
 
-    def train(self):
+    ## todo: Parallel Training
+    def train(self, device = -1):
         
         if self.__training_data is None:
 
