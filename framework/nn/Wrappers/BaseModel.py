@@ -14,9 +14,10 @@ class BaseModel:
             ) -> None:
         
         self.model_name = model_name
-        if dataset_name.lower() not in data.dataset_list:
-            raise RuntimeError(f'Dataset {dataset_name} not match')
-        self.dataset_name = dataset_name
+        self.dataset_name = dataset_name.lower()
+        if self.dataset_name not in data.dataset_list:
+            raise RuntimeError(f'Dataset {self.dataset_name} not match')
+        
         self.base_dir = base_dir
 
         self.output_path = f'{self.base_dir}/outputs/{self.dataset_name}/'
@@ -24,20 +25,20 @@ class BaseModel:
         self.__testing_data = None
         self.__model = None
 
-        special_mkdir(f'{base_dir}/datasaets/', dataset_name)
-        special_mkdir(f'{base_dir}/outputs/', dataset_name)
+        special_mkdir(f'{base_dir}/datasaets/', self.dataset_name)
+        special_mkdir(f'{base_dir}/outputs/', self.dataset_name)
 
     def __load_config(self):
 
-        config_path = f'{self.base_dir}/config/{self.model_name}/config.yaml'
+        config_path = f'{self.base_dir}/configs/{self.model_name}/config.yaml'
         with open(config_path) as f:
-            self.config = yaml.load(f)
+            self.config = yaml.load(f, Loader = yaml.FullLoader)
 
     def load_data(self):
         
         files = os.listdir(f'{self.base_dir}/datasets')
 
-        if self.dataset_name.lower() not in files:
+        if self.dataset_name not in files:
             ## download and unzip, move files into the right place
             print(f'Download dataset {self.dataset_name}')
         
@@ -46,7 +47,7 @@ class BaseModel:
 
         files = os.listdir(f'{self.base_dir}/pretrained_models')
 
-        if self.dataset_name.lower() not in files:
+        if self.dataset_name not in files:
             ## download and unzip, move files into the right place
             print(f'Download pretrained model for {self.model_name} on {self.dataset_name}')
 
