@@ -10,7 +10,6 @@ class BaseModel:
             self, 
             model_name: str, 
             dataset_name: str, 
-            device: str,
             base_dir: str = '../../'
             ) -> None:
         
@@ -20,8 +19,6 @@ class BaseModel:
         self.dataset_name = dataset_name
         self.base_dir = base_dir
 
-        ## todo: Parallel Training
-        self.device = device
         self.output_path = f'{self.base_dir}/outputs/{self.dataset_name}/'
         self.__training_data = None
         self.__testing_data = None
@@ -57,6 +54,9 @@ class BaseModel:
         pass
 
     def __init_model(self):
+        pass
+
+    def __init_optimizer_and_scheduler(self):
         pass
 
     def train(self):
