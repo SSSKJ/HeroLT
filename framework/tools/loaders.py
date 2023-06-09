@@ -176,7 +176,7 @@ class Graph_loader:
 
         return self.config, eval(f'self.__{model_name}_data_preprocessor')
 
-    def __imgagn_data_preprocessor(self):
+    def __ImGAGN_data_preprocessor(self):
         
         ratio_generated = self.config['ratio_generated']
 
@@ -227,6 +227,10 @@ class Graph_loader:
         minority_all = torch.LongTensor(minority_all)
 
         return adj, adj_real, features, labels, idx_train, idx_test, generate_node, minority, majority, minority_all
+    
+    def __TailGNN__data_preprocessor(self):
+
+        return self.features, self.adj.to_dense(), self.labels, self.idx_train, self.idx_val, self.idx_test
 
 
 
