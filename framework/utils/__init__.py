@@ -198,7 +198,534 @@ def init_weights(model, weights_path, caffe=False, classifier=False):
     model.load_state_dict(weights)   
     return model
 
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+import random
+from sklearn.metrics import f1_score, classification_report, confusion_matrix, balanced_accuracy_score, \
+    precision_score, recall_score, average_precision_score
+from imblearn.metrics import geometric_mean_score
+import os.path as osp
+import os
+import logging
+import sys
+import scipy.sparse as sp
+
+def split_natural(labels, idx_map):
+    # labels: n-dim Longtensor, each element in [0,...,m-1].
+    num_classes = len(set(labels.tolist()))
+    c_idxs = [] # class-wise index
+    train_idx = []
+    val_idx = []
+    test_idx = []
+    c_num_mat = np.zeros((num_classes,3)).astype(int)
+
+    for i in range(num_classes):
+        idx = list(idx_map.keys())[list(idx_map.values()).index(i)]
+        c_idx = (labels==i).nonzero()[:,-1].tolist()
+        print('OG:{:d} -> NEW:{:d}-th class sample number: {:d}'.format(idx, i, len(c_idx)))
+        c_num = len(c_idx)
+
+        if c_num < 10:
+            random.shuffle(c_idx)
+            c_idxs.append(c_idx)
+            c_num_mat[i,0] = 0
+            c_num_mat[i,1] = 0
+            c_num_mat[i,2] = c_num
+            # print('[{}-th class] Total: {} | Train: {} | Val: {} | Test: {}'.format(i,len(c_idx), c_num_mat[i,0], c_num_mat[i,1], c_num_mat[i,2]))
+            # train_idx = train_idx + c_idx[:c_num_mat[i, 0]]
+            # val_idx = val_idx + c_idx[c_num_mat[i, 0]:c_num_mat[i, 0] + c_num_mat[i, 1]]
+            test_idx = test_idx + c_idx[c_num_mat[i, 0] + c_num_mat[i, 1]:c_num_mat[i, 0] + c_num_mat[i, 1] + c_num_mat[i, 2]]
+        else:
+            random.shuffle(c_idx)
+            c_idxs.append(c_idx)
+            c_num_mat[i, 0] = int(c_num * 0.1)  # 10% for train
+            c_num_mat[i, 1] = int(c_num * 0.1)  # 10% for validation
+            c_num_mat[i, 2] = int(c_num * 0.8)  # 80% for test
+            train_idx = train_idx + c_idx[:c_num_mat[i, 0]]
+            val_idx = val_idx + c_idx[c_num_mat[i, 0]:c_num_mat[i, 0] + c_num_mat[i, 1]]
+            test_idx = test_idx + c_idx[c_num_mat[i, 0] + c_num_mat[i, 1]:c_num_mat[i, 0] + c_num_mat[i, 1] + c_num_mat[i, 2]]
+
+    random.shuffle(train_idx)
+    train_idx = torch.LongTensor(train_idx)
+    val_idx = torch.LongTensor(val_idx)
+    test_idx = torch.LongTensor(test_idx)
+
+    return train_idx, val_idx, test_idx, c_num_mat
+
+def separate_class_degree(adj, idx_train_set_class, above_head=None, below_tail=None, below=None, rand=False, is_eval=False):
+    idx_train_set = {}
+    idx_train_set['HH'] = []
+    idx_train_set['HT'] = []
+    idx_train_set['TH'] = []
+    idx_train_set['TT'] = []
+
+    adj_dense = adj.to_dense()
+    adj_dense[adj_dense != 0] = 1
+    degrees = np.array(list(map(int, torch.sum(adj_dense, dim=0))))
+
+    if rand:
+        for sep in ['H', 'T']:
+            idxs = np.array(idx_train_set_class[sep])
+            np.random.shuffle(idxs)
+        
+            idx_train_set[sep+'H'] = idxs[:int(len(idxs)/2)]
+            idx_train_set[sep+'T'] = idxs[int(len(idxs)/2):]
+            
+        for idx in ['HH', 'HT', 'TH', 'TT']:
+            random.shuffle(idx_train_set[idx])
+            idx_train_set[idx] = torch.LongTensor(idx_train_set[idx])
+
+            degree_dict = {}
+            above_head = 0
+            below_tail = 0
+        
+        return idx_train_set, degree_dict, degrees, above_head, below_tail
+
+
+    if not is_eval:
+        above_head = {}
+        below_tail = {}
+        degree_dict = {}
+
+        for sep in ['H', 'T']:
+            if len(idx_train_set_class[sep]) == 0:
+                continue
+
+            elif len(idx_train_set_class[sep]) == 1:
+                idx = idx_train_set_class[sep]
+                if sep == 'H':
+                    rand = random.choice(['HH', 'HT'])
+                    idx_train_set[rand].append(int(idx))
+                elif sep == 'T':
+                    rand = random.choice(['TH', 'TT'])
+                    idx_train_set[rand].append(int(idx))
+
+            else:
+                degrees_idx_train = degrees[idx_train_set_class[sep]]
+
+                above_head = below + 1
+                below_tail = below
+                gap_head = abs(degrees_idx_train - (below+1))
+                gap_tail = abs(degrees_idx_train - below)
+
+                if sep == 'H':
+                    idx_train_set['HH'] = list(map(int,idx_train_set_class[sep][gap_head < gap_tail]))
+                    idx_train_set['HT'] = list(map(int,idx_train_set_class[sep][gap_tail < gap_head]))
+
+                    if sum(gap_head == gap_tail) > 0:
+                        for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                            rand = random.choice(['HH', 'HT'])
+                            idx_train_set[rand].append(int(idx))
+
+                elif sep == 'T':
+                    idx_train_set['TH'] = list(map(int,idx_train_set_class[sep][gap_head < gap_tail]))
+                    idx_train_set['TT'] = list(map(int,idx_train_set_class[sep][gap_tail < gap_head]))
+
+                    if sum(gap_head == gap_tail) > 0:
+                        for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                            rand = random.choice(['TH', 'TT'])
+                            idx_train_set[rand].append(int(idx))
+
+        for idx in ['HH', 'HT', 'TH', 'TT']:
+            random.shuffle(idx_train_set[idx])
+            idx_train_set[idx] = torch.LongTensor(idx_train_set[idx])
+
+        return idx_train_set, degree_dict, degrees, above_head, below_tail
+    
+    elif is_eval:
+        for sep in ['H', 'T']:
+            if len(idx_train_set_class[sep]) == 0:
+                continue
+
+            else:
+                degrees_idx_train = degrees[idx_train_set_class[sep]]
+
+                gap_head = abs(degrees_idx_train - above_head)
+                gap_tail = abs(degrees_idx_train - below_tail)
+
+                if sep == 'H':
+                    if len(idx_train_set_class[sep]) == 1:
+                        if gap_head < gap_tail:
+                            idx_train_set['HH'].append(int(idx_train_set_class[sep]))
+                        elif gap_tail < gap_head:
+                            idx_train_set['HT'].append((idx_train_set_class[sep]))
+                        else:
+                            for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                                rand = random.choice(['HH', 'HT'])
+                                idx_train_set[rand].append(int(idx))
+                    else:
+                        idx_train_set['HH'] = list(map(int,idx_train_set_class[sep][gap_head < gap_tail]))
+                        idx_train_set['HT'] = list(map(int,idx_train_set_class[sep][gap_tail < gap_head]))
+
+                        if sum(gap_head == gap_tail) > 0:
+                            for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                                rand = random.choice(['HH', 'HT'])
+                                idx_train_set[rand].append(int(idx))
+
+                elif sep == 'T':
+                    if len(idx_train_set_class[sep]) == 1:
+                        if gap_head < gap_tail:
+                            idx_train_set['TH'].append(int(idx_train_set_class[sep]))
+                        elif gap_tail < gap_head:
+                            idx_train_set['TT'].append(int(idx_train_set_class[sep]))
+                        else:
+                            for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                                rand = random.choice(['TH', 'TT'])
+                                idx_train_set[rand].append(int(idx))
+                    else:
+                        idx_train_set['TH'] = list(map(int,idx_train_set_class[sep][gap_head < gap_tail]))
+                        idx_train_set['TT'] = list(map(int,idx_train_set_class[sep][gap_tail < gap_head]))
+
+                        if sum(gap_head == gap_tail) > 0:
+                            for idx in idx_train_set_class[sep][gap_head == gap_tail]:
+                                rand = random.choice(['TH', 'TT'])
+                                idx_train_set[rand].append(int(idx))
+            
+        for idx in ['HH', 'HT', 'TH', 'TT']:
+            idx_train_set[idx] = torch.LongTensor(idx_train_set[idx])
+                
+        return idx_train_set
+
+def separate_eval(idx_eval, labels, ht_dict_class, degrees, above_head, below_tail):
+    idx_eval_set = {}
+    idx_eval_set['HH'] = []
+    idx_eval_set['HT'] = []
+    idx_eval_set['TH'] = []
+    idx_eval_set['TT'] = []
+    
+    for idx in idx_eval:
+        label = int(labels[idx])
+        degree = int(degrees[idx])
+        if (label in ht_dict_class['H']) and (degree >= above_head):
+            idx_eval_set['HH'].append(int(idx))
+
+        elif (label in ht_dict_class['H']) and (degree <= below_tail):
+            idx_eval_set['HT'].append(int(idx))
+
+        elif (label in ht_dict_class['T']) and (degree >= above_head):
+            idx_eval_set['TH'].append(int(idx))
+
+        elif (label in ht_dict_class['T']) and (degree <= below_tail):
+            idx_eval_set['TT'].append(int(idx))
+        
+    
+    for idx in ['HH', 'HT', 'TH', 'TT']:
+        random.shuffle(idx_eval_set[idx])
+        idx_eval_set[idx] = torch.LongTensor(idx_eval_set[idx])
+            
+    return idx_eval_set
+
+def separate_ht(samples_per_label, labels, idx_train, method='pareto_28', rand=False, manual=False):
+    class_dict = {}
+    idx_train_set = {}
+
+    if rand:
+        ht_dict = {}
+        arr = np.array(idx_train)
+        np.random.shuffle(arr)
+        sample_num = int(idx_train.shape[0]/2)
+        sample_label_num = int(len(labels.unique())/2)
+        label_list = np.array(labels.unique())
+        np.random.shuffle(label_list)
+        ht_dict['H'] = label_list[0:sample_label_num]
+        ht_dict['T'] = label_list[sample_label_num:]
+
+        idx_train_set['H'] = arr[0:sample_num]
+        idx_train_set['T'] = arr[sample_num:]
+
+    elif manual:
+        ht_dict = {}
+        samples = samples_per_label
+        point = np.arange(len(samples_per_label)-1)[list(map(lambda x: samples[x] != samples[x+1], range(len(samples)-1)))][0]
+        label_list = np.array(labels.unique())
+        ht_dict['H'] = label_list[0:point+1]
+        ht_dict['T'] = label_list[point+1:]
+
+        print('Samples per label:', samples_per_label)
+        print('Separation:', ht_dict.items())
+
+        idx_train_set['H'] = []
+        idx_train_set['T'] = []
+        for label in label_list:
+            idx = 'H' if label <= point else 'T'
+            idx_train_set[idx].extend(torch.LongTensor(idx_train[labels[idx_train] == label]))
+            
+    else:
+        ht_dict = separator_ht(samples_per_label, method) # H/T
+
+        print('Samples per label:', samples_per_label)
+        print('Separation:', ht_dict.items())
+
+        for idx, value in ht_dict.items():
+            class_dict[idx] = []
+            idx_train_set[idx] = []
+            idx = idx
+            label_list = value
+
+            for label in label_list:
+                class_dict[idx].append(label)
+                idx_train_set[idx].extend(torch.LongTensor(idx_train[labels[idx_train] == label]))
+            
+    for idx in list(ht_dict.keys()):
+        random.shuffle(idx_train_set[idx])
+        idx_train_set[idx] = torch.LongTensor(idx_train_set[idx])
+
+    return idx_train_set, ht_dict
+
+
+def separator_ht(dist, method='pareto_28', degree=False): # Head / Tail separator
+    head = int(method[-2]) # 2 in pareto_28
+    tail = int(method[-1]) # 8 in pareto_28
+    head_idx = int(len(dist) * (head/10))
+    ht_dict = {}
+
+    if head_idx == 0:
+        ht_dict['H'] = list(range(0, 1))
+        ht_dict['T'] = list(range(1, len(dist)))
+        return ht_dict
+
+    else:
+        crierion = dist[head_idx].item()
+
+        case1_h = sum(np.array(dist) >= crierion)
+        case1_t = sum(np.array(dist) < crierion)
+
+        case2_h = sum(np.array(dist) > crierion)
+        case2_t = sum(np.array(dist) <= crierion)
+
+        gap_case1 = abs(case1_h/case1_t - head/tail)
+        gap_case2 = abs(case2_h/case2_t - head/tail)
+
+        if gap_case1 < gap_case2:
+            idx = sum(np.array(dist) >= crierion)
+            ht_dict['H'] = list(range(0, idx))
+            ht_dict['T'] = list(range(idx, len(dist)))
+
+        elif gap_case1 > gap_case2:
+            idx = sum(np.array(dist) > crierion)
+            ht_dict['H'] = list(range(0, idx))
+            ht_dict['T'] = list(range(idx, len(dist)))
+
+        else:
+            rand = random.choice([1, 2])
+            if rand == 1:
+                idx = sum(np.array(dist) >= crierion)
+                ht_dict['H'] = list(range(0, idx))
+                ht_dict['T'] = list(range(idx, len(dist)))
+            else:
+                idx = sum(np.array(dist) > crierion)
+                ht_dict['H'] = list(range(0, idx))
+                ht_dict['T'] = list(range(idx, len(dist)))
+
+        return ht_dict
+
+def accuracy(output, labels, sep_point=None, sep=None, pre=None):
+    if sep in ['T', 'TH', 'TT']:
+        labels = labels - sep_point # [4,5,6] -> [0,1,2]
+
+    if output.shape != labels.shape:
+        if len(labels) == 0:
+            return np.nan
+        preds = output.max(1)[1].type_as(labels)
+    else:
+        preds= output
+
+    correct = preds.eq(labels).double()
+    correct = correct.sum()
+
+    if correct > len(labels):
+        print("wrong")
+    return correct / len(labels)
+
+def mean_average_precision(output, labels, sep_point=None, sep=None):
+    if sep in ['T', 'TH', 'TT']:
+        labels = labels - sep_point # [4,5,6] -> [0,1,2]
+
+    return average_precision_score(F.one_hot(labels, output.shape[1]), output, average='macro')
+
+def classification(output, labels, sep_point=None, sep=None):
+    target_names = []
+    if len(labels) == 0:
+        return np.nan
+    else:
+        if sep in ['T', 'TH', 'TT']:
+            labels = labels - sep_point
+        pred = output.max(1)[1].type_as(labels)
+        for i in labels.unique():
+            target_names.append(f'class_{int(i)}')
+
+        return classification_report(labels, pred)
+
+def confusion(output, labels, sep_point=None, sep=None):
+    if len(labels) == 0:
+        return np.nan
+    else:
+        if sep in ['T', 'TH', 'TT']:
+            labels = labels - sep_point
+        
+        pred = output.max(1)[1].type_as(labels)
+    
+        return confusion_matrix(labels, pred)
+
+def performance_measure(output, labels, sep_point=None, sep=None, pre=None):
+    acc = accuracy(output, labels, sep_point=sep_point, sep=sep, pre=pre)*100
+    mAP = mean_average_precision(output.cpu().detach(), labels.cpu().detach(), sep_point=sep_point, sep=sep) * 100
+
+    if len(labels) == 0:
+        return np.nan
+    
+    if output.shape != labels.shape:
+        output = torch.argmax(output, dim=-1)
+    
+    if sep in ['T', 'TH', 'TT']:
+        labels = labels - sep_point # [4,5,6] -> [0,1,2]
+
+    # macro_F = f1_score(labels.cpu().detach(), output.cpu().detach(), average='macro')*100
+    # gmean = geometric_mean_score(labels.cpu().detach(), output.cpu().detach(), average='macro')*100
+    precision = precision_score(labels.cpu().detach(), output.cpu().detach(), average='macro') * 100
+    recall = recall_score(labels.cpu().detach(), output.cpu().detach(), average='macro') * 100
+    bacc = balanced_accuracy_score(labels.cpu().detach(), output.cpu().detach())*100
+
+    return acc, bacc, precision, recall, mAP
+
+def adj_mse_loss(adj_rec, adj_tgt, adj_mask = None):
+    
+    adj_tgt[adj_tgt != 0] = 1
+
+    edge_num = adj_tgt.nonzero().shape[0] #number of non-zero
+    total_num = adj_tgt.shape[0]**2 #possible edge
+
+    neg_weight = edge_num / (total_num-edge_num)
+
+    weight_matrix = adj_rec.new(adj_tgt.shape).fill_(1.0)
+    weight_matrix[adj_tgt==0] = neg_weight
+
+    loss = torch.sum(weight_matrix * (adj_rec - adj_tgt) ** 2) # element-wise
+
+    return loss
+
+def seed_everything(seed=0):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+
+def refine_label_order(labels):
+    print('Refine label order, Many to Few')
+    num_labels = labels.max() + 1
+    num_labels_each_class = np.array([(labels == i).sum().item() for i in range(num_labels)])
+    sorted_index = np.argsort(num_labels_each_class)[::-1]
+    idx_map = {sorted_index[i]:i for i in range(num_labels)}
+    new_labels = np.vectorize(idx_map.get)(labels.numpy())
+
+    return labels.new(new_labels), idx_map
+
+def normalize_output(out_feat, idx):
+    sum_m = 0
+    for m in out_feat:
+        sum_m += torch.mean(torch.norm(m[idx], dim=1))
+    return sum_m 
+
+def normalize_adj(adj):
+    """Row-normalize sparse matrix"""
+    deg = torch.sum(adj.to_dense(), dim=1)
+    deg_inv_sqrt = deg.pow(-1)
+    deg_inv_sqrt.masked_fill_(deg_inv_sqrt == float('inf'), 0.)
+    deg_inv_sqrt = torch.diag(deg_inv_sqrt).to_sparse()
+    adj = torch.spmm(deg_inv_sqrt, adj.to_dense()).to_sparse()
+    
+    return adj
+
+def normalize_sym(adj):
+    """Symmetric-normalize sparse matrix"""
+    deg = torch.sum(adj.to_dense(), dim=1)
+    deg_inv_sqrt = deg.pow(-0.5)
+    deg_inv_sqrt.masked_fill_(deg_inv_sqrt == float('inf'), 0.)
+    deg_inv_sqrt = torch.diag(deg_inv_sqrt).to_sparse()
+
+    adj = torch.spmm(deg_inv_sqrt, adj.to_dense()).to_sparse()
+    adj = torch.spmm(adj, deg_inv_sqrt.to_dense()).to_sparse()
+
+    return adj
+
+def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+    """Convert a scipy sparse matrix to a torch sparse tensor."""
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
+
+def torch_sparse_tensor_to_sparse_mx(torch_sparse, shape):
+    """Convert a torch sparse tensor to a scipy sparse matrix."""
+    m_index = torch_sparse._indices().numpy()
+    row = m_index[0]
+    col = m_index[1]
+    data = torch_sparse._values().numpy()
+    sp_matrix = sp.coo_matrix((data, (row, col)), shape=shape, dtype=np.float32)
+    return sp_matrix
+
+def scheduler(epoch, curriculum_ep=500, func='convex'):
+    if func == 'convex':
+        return np.cos((epoch * np.pi) / (curriculum_ep * 2))
+    elif func == 'concave':
+        return np.power(0.99, epoch)
+    elif func == 'linear':
+        return 1 - (epoch / curriculum_ep)
+    elif func == 'composite':
+        return (1/2) * np.cos((epoch*np.pi) / curriculum_ep) + 1/2
+
+def setupt_logger(save_dir, text, filename = 'log.txt'):
+    os.makedirs(save_dir, exist_ok=True)
+    logger = logging.getLogger(text)
+    # for each in logger.handlers:
+    #     logger.removeHandler(each)
+    logger.setLevel(4)
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(message)s")
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    if save_dir:
+        fh = logging.FileHandler(os.path.join(save_dir, filename))
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+    logger.info("======================================================================================")
+    return logger
+
+def set_filename(args):
+    rec_with_ep_pre = 'True_ep_pre_' + str(args.ep_pre) + '_rw_' + str(args.rw) if args.rec else 'False'
+
+    if args.im_ratio == 1: # Natural Setting
+        results_path = f'./results/natural/{args.dataset}'
+        logs_path = f'./logs/natural/{args.dataset}'
+        os.makedirs(results_path, exist_ok=True)
+        os.makedirs(logs_path, exist_ok=True)
+
+        textname = f'cls_og_{args.cls_og}_rec_{rec_with_ep_pre}_cw_{args.class_weight}_gamma_{args.gamma}_alpha_{args.alpha}_sep_class_{args.sep_class}_degree_{args.sep_degree}_cur_ep_{args.curriculum_ep}_lr_{args.lr}_{args.lr_expert}_dropout_{args.dropout}.txt'
+        text = open(f'./results/natural/{args.dataset}/({args.layer}){textname}', 'w')
+        file = f'./logs/natural/{args.dataset}/({args.layer})lte4g.txt'
+        
+    else: # Manual Imbalance Setting (0.2, 0.1, 0.05)
+        results_path = f'./results/manual/{args.dataset}/{args.im_class_num}/{args.im_ratio}'
+        logs_path = f'./logs/manual/{args.dataset}/{args.im_class_num}/{args.im_ratio}'
+        os.makedirs(results_path, exist_ok=True)
+        os.makedirs(logs_path, exist_ok=True)
+
+        textname = f'cls_og_{args.cls_og}_rec_{rec_with_ep_pre}_cw_{args.class_weight}_gamma_{args.gamma}_alpha_{args.alpha}_sep_class_{args.sep_class}_degree_{args.sep_degree}_cur_ep_{args.curriculum_ep}_lr_{args.lr}_{args.lr_expert}_dropout_{args.dropout}.txt'
+        text = open(f'./results/manual/{args.dataset}/{args.im_class_num}/{args.im_ratio}/({args.layer}){textname}', 'w')
+        file = f'./logs/manual/{args.dataset}/{args.im_class_num}/{args.im_ratio}/({args.layer})lte4g.txt'
+        
+    return text, file
+
 def normalize(mx):
+    """Row-normalize sparse matrix"""
     rowsum = np.array(mx.sum(1))
     r_inv = np.power(rowsum, -1).flatten()
     r_inv[np.isinf(r_inv)] = 0.
@@ -215,31 +742,27 @@ def normalize_sp_adj(adj):
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
     return adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
 
+def performance_per_class(output, labels, sep_point=None, sep=None, pre=None):
+    acc_list, macro_F_list, gmean_list, bacc_list = [], [], [], []
+    if len(labels) == 0:
+        return np.nan
+    if output.shape != labels.shape:
+        output = torch.argmax(output, dim=-1)
+    if sep in ['T', 'TH', 'TT']:
+        labels = labels - sep_point  # [4,5,6] -> [0,1,2]
 
-def accuracy(output, labels, output_AUC):
-    preds = output.max(1)[1].type_as(labels)
+    num_classes = len(set(labels.tolist()))
+    for i in range(num_classes):
+        c_idx = (labels==i).nonzero()[:,-1].tolist()
+        acc = accuracy(output[c_idx], labels[c_idx], sep_point=sep_point, sep=sep, pre=pre) * 100
+        macro_F = f1_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach(), average='macro') * 100
+        gmean = geometric_mean_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach(), average='macro') * 100
+        bacc = balanced_accuracy_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach()) * 100
+        acc_list.append('%.1f' % acc)
+        macro_F_list.append('%.1f' % macro_F)
+        gmean_list.append('%.1f' % gmean)
+        bacc_list.append('%.1f' % bacc)
 
+    return acc_list, macro_F_list, gmean_list, bacc_list
 
-    recall = sklearn.metrics.recall_score(labels.cpu().numpy(), preds.cpu().numpy())
-    f1_score = sklearn.metrics.f1_score(labels.cpu().numpy(), preds.cpu().numpy())
-    AUC = sklearn.metrics.roc_auc_score(labels.cpu().numpy(), output_AUC.detach().cpu().numpy())
-    acc = sklearn.metrics.accuracy_score(labels.cpu().numpy(), preds.cpu().numpy())
-    precision = sklearn.metrics.precision_score(labels.cpu().numpy(), preds.cpu().numpy())
-    return recall, f1_score, AUC, acc, precision
-
-
-def sparse_mx_to_torch_sparse_tensor(sparse_mx):
-    sparse_mx = sparse_mx.tocoo().astype(np.float32)
-    indices = torch.from_numpy(
-        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
-    values = torch.from_numpy(sparse_mx.data)
-    shape = torch.Size(sparse_mx.shape)
-    return torch.sparse.FloatTensor(indices, values, shape)
-
-def add_edges(adj_real, adj_new):
-    adj = adj_real+adj_new
-    adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
-    adj = normalize(adj + sp.eye(adj.shape[0]))
-    adj = sparse_mx_to_torch_sparse_tensor(adj)
-    return adj
 
