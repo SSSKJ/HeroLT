@@ -1,7 +1,7 @@
 from CosNormClassifier import *
 from DotProductClassifier import *
 from GCN import *
-from Generator import *
+from ImGAGN_Generator import *
 from MetaEmbeddingClassifier import *
 from ResNet101Feature import *
 from ResNet10Feature import *
@@ -14,3 +14,5 @@ from ResNext152Feature import *
 from ResNext50Feature import *
 from ResNextFeature import *
 from TauNormClassifier import *
+from TailGNN_Generator import *
+from TransGCN import *
