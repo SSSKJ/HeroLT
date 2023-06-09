@@ -8,7 +8,7 @@
  3. **(A3) the heterogeneity of emerging tasks:** it highlights the need to consider the applicability and limitations of existing methods on heterogeneous tasks.
 
 <div  align="center">
- <img src="figs/angle.png" width = "700" height = "366" />
+ <img src="[figs/angle.png](https://github.com/SSSKJ/HeroLT/blob/main/figs/angle.png)" width = "700" height = "366" />
 </div>
 
 We provide a fair and accessible performance evaluation of 13 state-of-the-art methods on multiple benchmark datasets across multiple tasks using accuracy-based and ranking-based evaluation metrics.
