@@ -766,3 +766,116 @@ def performance_per_class(output, labels, sep_point=None, sep=None, pre=None):
     return acc_list, macro_F_list, gmean_list, bacc_list
 
 
+def tailGNN_normalize_adj(adj, norm_type=1, iden=False):
+    # 1: mean norm, 2: spectral norm
+    # add the diag into adj, namely, the self-connection. then normalization
+    if iden:
+        adj = adj + np.eye(adj.shape[0])  # self-loop
+    if norm_type == 1:
+        D = np.sum(adj, axis=1)
+        adjNor = adj / D
+        adjNor[np.isinf(adjNor)] = 0.
+    else:
+        adj[adj > 0.0] = 1.0
+        D_ = np.diag(np.power(np.sum(adj, axis=1), -0.5))
+        adjNor = np.dot(np.dot(D_, adj), D_)
+
+    return adjNor, adj
+
+
+def encode_onehot(labels):
+    classes = set(labels)
+    classes_dict = {c: np.identity(len(classes))[i, :] for i, c in
+                    enumerate(classes)}
+    labels_onehot = np.array(list(map(classes_dict.get, labels)),
+                             dtype=np.int32)
+    return labels_onehot
+
+
+def tailGNN_normalize(mx):
+    """Row-normalize sparse matrix"""
+    rowsum = np.array(mx.sum(1))
+    rowsum = np.where(rowsum == 0, 1, rowsum)
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = sp.diags(r_inv)
+    mx = r_mat_inv.dot(mx)
+
+    return mx
+
+
+def parse_index_file(filename):
+    """Parse index file."""
+    index = []
+    for line in open(filename):
+        index.append(int(line.strip()))
+    return index
+
+
+def preprocess_features(features):
+    """Row-normalize feature matrix and convert to tuple representation"""
+    rowsum = np.array(features.sum(1))
+    rowsum = np.where(rowsum == 0, 1, rowsum)
+    r_inv = np.power(rowsum, -1).flatten()
+    r_inv[np.isinf(r_inv)] = 0.
+    r_mat_inv = sp.diags(r_inv)
+    features = r_mat_inv.dot(features)
+
+    if sp.issparse(features):
+        return features.todense()
+    else:
+        return features
+
+
+def convert_sparse_tensor(sparse_mx):
+    """Convert a scipy sparse matrix to a torch sparse tensor."""
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
+
+
+def convert_to_torch_tensor(features, adj, tail_adj, labels, idx_train, idx_val, idx_test):
+    features = torch.FloatTensor(features)
+    labels = torch.LongTensor(np.where(labels)[1])
+    idx_train = torch.LongTensor(idx_train)
+    idx_val = torch.LongTensor(idx_val)
+    idx_test = torch.LongTensor(idx_test)
+    adj = convert_sparse_tensor(adj)  # + sp.eye(adj.shape[0]))
+    tail_adj = convert_sparse_tensor(tail_adj)  # + sp.eye(tail_adj.shape[0])
+    iden = sp.eye(adj.shape[0])
+    iden = convert_sparse_tensor(iden)
+
+    return features, adj, tail_adj, iden, labels, idx_train, idx_val, idx_test
+
+
+def link_dropout(adj, idx, k=5):
+    tail_adj = adj.copy()
+    num_links = np.random.randint(k, size=idx.shape[0])
+    num_links += 1
+
+    for i in range(idx.shape[0]):
+        index = tail_adj[idx[i]].nonzero()[0]
+        new_idx = np.random.choice(index, min(num_links[i], len(index)), replace=False)
+        tail_adj[idx[i]] = 0.0
+        for j in new_idx:
+            tail_adj[idx[i], j] = 1.0
+    return tail_adj
+
+
+# split head vs tail nodes
+def split_nodes(idx, adj, k=5):
+    num_idx_links = np.sum(adj[idx], axis=1)
+    idx_train = np.where(num_idx_links > k)[0]
+
+    num_links = np.sum(adj, axis=1)
+    idx_valtest = np.where(num_links <= k)[0]
+    np.random.shuffle(idx_valtest)
+
+    p = int(idx_valtest.shape[0] / 3)
+    idx_val = idx_valtest[:p]
+    idx_test = idx_valtest[p:]
+
+    return idx_train, idx_val, idx_test
