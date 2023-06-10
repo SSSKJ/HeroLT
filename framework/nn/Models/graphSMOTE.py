@@ -7,21 +7,21 @@ from Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder
 from tools import recon_upsample
 from utils import *
 
-class modeler(nn.Module):
-    def __init__(self, args, adj):
-        super(modeler, self).__init__()
-        self.args = args
+class graphSMOTE(nn.Module):
+    def __init__(self, config, adj):
+        super(graphSMOTE, self).__init__()
+        self.config = config
 
-        self.encoder = GNN_Encoder(layer=args.layer, nfeat=args.nfeat, nhid=args.nhid, nhead=args.nhead, dropout=args.dropout, adj=adj)
-        self.classifier = GNN_Classifier(layer=args.layer, nhid=args.nhid, nclass=args.nclass, nhead=args.nhead, dropout=args.dropout, adj=adj)
+        self.encoder = GNN_Encoder(layer=config['layer'], nfeat=config['nfeat'], nhid=config['nhid'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
+        self.classifier = GNN_Classifier(layer=config['layer'], nhid=config['nhid'], nclass=config['nclass'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
 
-        self.decoder = GraphSMOTE_Decoder(nhid=args.nhid, dropout=args.dropout)
+        self.decoder = GraphSMOTE_Decoder(nhid=config['nhid'], dropout=config['dropout'])
 
     def forward(self, features, adj, labels, idx_train, pretrain=False):
         embed = self.encoder(features)
 
         ori_num = labels.shape[0]
-        embed, labels_new, idx_train_new, adj_up = recon_upsample(embed, labels, idx_train, adj=adj.detach().to_dense(), portion=self.args.up_scale, im_class_num=self.args.im_class_num)
+        embed, labels_new, idx_train_new, adj_up = recon_upsample(embed, labels, idx_train, adj=adj.detach().to_dense(), portion=self.config['up_scale'], im_class_num=self.config['im_class_num'])
         generated_G = self.decoder(embed)  # generate edges
 
         loss_reconstruction = adj_mse_loss(generated_G[:ori_num, :][:, :ori_num], adj.detach().to_dense())  # Equation 6
@@ -40,10 +40,10 @@ class modeler(nn.Module):
         adj_new = adj_new.detach() ##
 
         adj_new[adj_new != 0] = 1
-        if self.args.adj_norm_1:
+        if self.config['adj_norm_1']:
             adj_new = normalize_adj(adj_new.to_sparse())
             
-        elif self.args.adj_norm_2:
+        elif self.config['adj_norm_2']:
             adj_new = normalize_sym(adj_new.to_sparse())
 
         output = self.classifier(embed, adj_new)
