@@ -84,7 +84,7 @@ class Decoupling_loader:
 
         print('Use data transformation:', transform)
 
-        set_ = LT_Dataset(data_root, txt, transform)
+        set_ = Decoupling_LT_Dataset(data_root, txt, transform)
         print(len(set_))
 
         if sampler_dic and phase == 'train':
@@ -100,6 +100,55 @@ class Decoupling_loader:
             return DataLoader(dataset=set_, batch_size=batch_size,
                             shuffle=shuffle, num_workers=num_workers)
         
+
+class TDE_loader:
+
+    @classmethod
+    def load_data(cls, data_root, dataset, phase, batch_size, top_k_class=None, sampler_dic=None, num_workers=4, shuffle=True, cifar_imb_ratio=None):
+
+        txt_split = phase
+        txt = './data/%s/%s_%s.txt'%(dataset, dataset, txt_split)
+        template = './data/%s/%s'%(dataset, dataset)
+
+        print('Loading data from %s' % (txt))
+
+        if dataset == 'iNaturalist18':
+            print('===> Loading iNaturalist18 statistics')
+            key = 'iNaturalist18'
+        else:
+            key = 'default'
+
+        if dataset == 'CIFAR10_LT':
+            print('====> CIFAR10 Imbalance Ratio: ', cifar_imb_ratio)
+            set_ = IMBALANCECIFAR10(phase, imbalance_ratio=cifar_imb_ratio, root=data_root)
+        elif dataset == 'CIFAR100_LT':
+            print('====> CIFAR100 Imbalance Ratio: ', cifar_imb_ratio)
+            set_ = IMBALANCECIFAR100(phase, imbalance_ratio=cifar_imb_ratio, root=data_root)
+        else:
+            rgb_mean, rgb_std = Decoupling_loader.RGB_statistics[key]['mean'], Decoupling_loader.RGB_statistics[key]['std']
+            if phase not in ['train', 'val']:
+                transform = Decoupling_loader.get_data_transform('test', rgb_mean, rgb_std, key)
+            else:
+                transform = Decoupling_loader.get_data_transform(phase, rgb_mean, rgb_std, key)
+            print('Use data transformation:', transform)
+
+            set_ = TDE_LT_Dataset(data_root, txt, transform, template=template, top_k=top_k_class)
+        
+
+        print(len(set_))
+
+        if sampler_dic and phase == 'train':
+            print('=====> Using sampler: ', sampler_dic['sampler'])
+            # print('Sample %s samples per-class.' % sampler_dic['num_samples_cls'])
+            print('=====> Sampler parameters: ', sampler_dic['params'])
+            return DataLoader(dataset=set_, batch_size=batch_size, shuffle=False,
+                            sampler=sampler_dic['sampler'](set_, **sampler_dic['params']),
+                            num_workers=num_workers)
+        else:
+            print('=====> No sampler.')
+            print('=====> Shuffle is %s.' % (shuffle))
+            return DataLoader(dataset=set_, batch_size=batch_size,
+                            shuffle=shuffle, num_workers=num_workers)
 
 
 class Graph_loader:
