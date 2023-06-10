@@ -879,3 +879,28 @@ def split_nodes(idx, adj, k=5):
     idx_test = idx_valtest[p:]
 
     return idx_train, idx_val, idx_test
+
+
+# Tang Kaihua New Add
+def print_grad_norm(named_parameters, verbose=False):
+    if not verbose:
+        return None
+
+    total_norm = 0.0
+    param_to_norm = {}
+    param_to_shape = {}
+    for n, p in named_parameters.items():
+        if p.grad is not None:
+            param_norm = p.grad.norm(2)
+            total_norm += param_norm ** 2
+            param_to_norm[n] = param_norm
+            param_to_shape[n] = p.size()
+
+    total_norm = total_norm ** (1. / 2)
+
+    print('----------Total norm {:.5f}-----------------'.format(total_norm))
+    for name, norm in sorted(param_to_norm.items(), key=lambda x: -x[1]):
+        print("{:<50s}: {:.5f}, ({})".format(name, norm, param_to_shape[name]))
+    print('-------------------------------')
+
+    return total_norm
