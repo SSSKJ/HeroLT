@@ -23,3 +23,6 @@ from .GNN_Classifier import *
 from .Graph_Decoder import *
 from .MLP import *
 from .lTE4G import * 
+from .BBN_Combiner import *
+from .BBN_ResNet import *
+from .BBN_ResNet_cifar import *
