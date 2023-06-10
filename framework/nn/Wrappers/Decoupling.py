@@ -14,6 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 ## todo: check source_import function
+## todo: feature uniform
 
 class Decoupling(BaseModel):
 
@@ -21,6 +22,7 @@ class Decoupling(BaseModel):
             self,
             dataset: str,
             base_dir: str = '../../',
+            test_mode: bool = True,
             ) -> None:
         
         super().__init__(
@@ -29,9 +31,11 @@ class Decoupling(BaseModel):
             base_dir = base_dir)
         
         self.__load_config()
+        self.test_mode = test_mode
 
         self.all_config = self.config
-        self.config = self.config['cls_lws']
+        if 'cls_lws' in self.config:
+            self.config = self.config['cls_lws']
 
         self.training_opt = self.config['training_opt']
         self.memory = self.config['memory']
@@ -40,29 +44,20 @@ class Decoupling(BaseModel):
         
         # Initialize model
         self.__init_model()
-        # Initialize optimizer and scheduler
-        self.__init_optimizer_and_scheduler()
         
         # Under training mode, initialize training steps, optimizers, schedulers, criterions, and centroids
         # If using steps for training, we need to calculate training steps 
         # for each epoch based on actual number of training data instead of 
         # oversampled data number 
-        print('Using steps for training.')
-        self.training_data_num = len(self.data['train'].dataset)
-        self.epoch_steps = int(self.training_data_num / self.training_opt['batch_size'])
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
         print('Initializing model optimizer.')
         self.scheduler_params = self.training_opt['scheduler_params']
         self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
-        self.__init_criterions()
-        if self.memory['init_centroids']:
-            self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
 
     def load_data(
-            self, 
-            train: bool = True,
+            self,
             force: bool = False):
         
         super().load_data()
@@ -72,7 +67,7 @@ class Decoupling(BaseModel):
         training_opt = self.config['training_opt']
         dataset = self.dataset_name.lower()
 
-        if train:
+        if not self.test_mode:
 
             if self.__training_data is not None and not force:
 
@@ -271,6 +266,16 @@ class Decoupling(BaseModel):
 
         self.data = self.__training_data
 
+        # Initialize optimizer and scheduler
+        self.__init_optimizer_and_scheduler()
+        self.__init_criterions()
+        if self.memory['init_centroids']:
+            self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
+
+        print('Using steps for training.')
+        self.training_data_num = len(self.data['train'].dataset)
+        self.epoch_steps = int(self.training_data_num / self.training_opt['batch_size'])
+
         # Initialize best model
         best_model_weights = {}
         best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
@@ -303,7 +308,7 @@ class Decoupling(BaseModel):
                 if step == self.epoch_steps:
                     break
                 if self.do_shuffle:
-                    inputs, labels = self.shuffle_batch(inputs, labels)
+                    inputs, labels = self.__shuffle_batch(inputs, labels)
                 inputs, labels = inputs.cuda(), labels.cuda()
 
                 # If on training phase, enable gradients
@@ -627,7 +632,7 @@ class Decoupling(BaseModel):
             model.load_state_dict(weights)
     
     
-    def load_pretrained_model(self, train: bool = True):
+    def load_pretrained_model(self):
         # Load pre-trained model parameters
         model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
@@ -641,7 +646,7 @@ class Decoupling(BaseModel):
         
         for key, model in self.networks.items():
             # if not self.test_mode and key == 'classifier':
-            if train and 'DotProductClassifier' in self.config['networks'][key]['def_file']:
+            if not self.test_mode and 'DotProductClassifier' in self.config['networks'][key]['def_file']:
                 # Skip classifier initialization 
                 print('Skiping classifier initialization')
                 continue
