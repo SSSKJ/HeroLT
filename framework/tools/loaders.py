@@ -231,6 +231,10 @@ class Graph_loader:
     def __TailGNN__data_preprocessor(self):
 
         return self.features, self.adj.to_dense(), self.labels, self.idx_train, self.idx_val, self.idx_test
+    
+    def __GraphSMOTE__data_preprocessor(self):
+
+        return self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test
 
 
 
