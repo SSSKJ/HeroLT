@@ -20,4 +20,6 @@ from .tailGNN import *
 from .graphSMOTE import *
 from .GNN_Encoder import *
 from .GNN_Classifier import *
-from .GraphSMOTE_Decoder import *
+from .Graph_Decoder import *
+from .MLP import *
+from .lTE4G import * 
