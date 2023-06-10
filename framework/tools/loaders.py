@@ -228,11 +228,11 @@ class Graph_loader:
 
         return adj, adj_real, features, labels, idx_train, idx_test, generate_node, minority, majority, minority_all
     
-    def __TailGNN__data_preprocessor(self):
+    def __TailGNN_data_preprocessor(self):
 
         return self.features, self.adj.to_dense(), self.labels, self.idx_train, self.idx_val, self.idx_test
     
-    def __GraphSMOTE__data_preprocessor(self):
+    def __GraphSMOTE_data_preprocessor(self):
 
         return self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test
 
