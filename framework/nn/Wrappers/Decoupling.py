@@ -22,7 +22,7 @@ class Decoupling(BaseModel):
             self,
             dataset: str,
             base_dir: str = '../../',
-            test_mode: bool = True,
+            test_mode: bool = False,
             ) -> None:
         
         super().__init__(
@@ -123,8 +123,7 @@ class Decoupling(BaseModel):
             
             self.__testing_data = data
             self.data = data
-        
-        return data
+
     
     def __init_model(self):
 
@@ -681,14 +680,6 @@ class Decoupling(BaseModel):
         model_dir = f'{self.output_path}/final_model_checkpoint.pth'
 
         torch.save(model_states, model_dir)
-
-    def output_logits(self):
-        filename = f'{self.output_path}/logits'
-        print("Saving total logits to: %s.npz" % filename)
-        np.savez(filename, 
-                 logits=self.total_logits.detach().cpu().numpy(), 
-                 labels=self.total_labels.detach().cpu().numpy(),
-                 paths=self.total_paths)
 
 
 

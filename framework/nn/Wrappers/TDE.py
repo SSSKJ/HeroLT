@@ -26,7 +26,7 @@ class TDE(BaseModel):
             self,
             dataset: str,
             base_dir: str = '../../',
-            test_mode: bool = True,
+            test_mode: bool = False,
             ) -> None:
         
         super().__init__(
@@ -157,10 +157,6 @@ class TDE(BaseModel):
             if dataset == 'imageNet-lt':
                 splits = ['train', 'val']
 
-            if 'imagenet_lt' == dataset:
-                splits = ['train', 'val']
-                test_split = 'val'
-
             splits.append('train_plain')
 
             data = {x: TDE_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
@@ -175,8 +171,7 @@ class TDE(BaseModel):
             
             self.__testing_data = data
             self.data = data
-        
-        return data
+
     def __init_optimizer_and_scheduler(self, optim_params_dict):
         '''
         seperate backbone optimizer and classifier optimizer
@@ -570,7 +565,7 @@ class TDE(BaseModel):
             with torch.set_grad_enabled(False):
 
                 # In validation or testing
-                self.batch_forward(inputs, labels, phase=phase)
+                self.__batch_forward(inputs, labels, phase=phase)
                 # feature saving update
                 if save_feat:
                     self.__saving_feature_with_label_update(self.features, self.logits, labels)
@@ -736,14 +731,6 @@ class TDE(BaseModel):
                                  'final_model_checkpoint.pth')
 
         torch.save(model_states, model_dir)
-            
-    def output_logits(self):
-        filename = os.path.join(self.training_opt['log_dir'], 'logits')
-        print("Saving total logits to: %s.npz" % filename)
-        np.savez(filename, 
-                 logits=self.total_logits.detach().cpu().numpy(), 
-                 labels=self.total_labels.detach().cpu().numpy(),
-                 paths=self.total_paths)
 
     def __saving_feature_with_label_init(self):
         self.saving_feature_container = []
