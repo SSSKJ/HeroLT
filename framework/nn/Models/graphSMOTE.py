@@ -3,7 +3,7 @@ from torch import nn
 
 import copy
 
-from Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder
+from Models import GNN_Encoder, GNN_Classifier, Graph_Decoder
 from tools import recon_upsample
 from utils import *
 
@@ -15,7 +15,7 @@ class graphSMOTE(nn.Module):
         self.encoder = GNN_Encoder(layer=config['layer'], nfeat=config['nfeat'], nhid=config['nhid'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
         self.classifier = GNN_Classifier(layer=config['layer'], nhid=config['nhid'], nclass=config['nclass'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
 
-        self.decoder = GraphSMOTE_Decoder(nhid=config['nhid'], dropout=config['dropout'])
+        self.decoder = Graph_Decoder(nhid=config['nhid'], dropout=config['dropout'])
 
     def forward(self, features, adj, labels, idx_train, pretrain=False):
         embed = self.encoder(features)
