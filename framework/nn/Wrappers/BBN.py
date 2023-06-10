@@ -105,6 +105,8 @@ class BBN(BaseModel):
             raise NotImplementedError("Unsupported LR Scheduler: {}".format(self.config.TRAIN.LR_SCHEDULER.TYPE))
 
     def load_data(self):
+
+        super().load_data()
                 
         self.train_set = eval(self.config.DATASET.DATASET)("train", self.config)
         self.valid_set = eval(self.config.DATASET.DATASET)("valid", self.config)

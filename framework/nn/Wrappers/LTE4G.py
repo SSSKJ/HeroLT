@@ -29,6 +29,8 @@ class LTE4G(BaseModel):
 
     def load_data(self):
 
+        super().load_data()
+
         self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = Graph_loader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
 
     def __init_model(self):

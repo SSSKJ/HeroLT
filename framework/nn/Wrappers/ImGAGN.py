@@ -24,6 +24,8 @@ class ImGAGN(BaseModel):
     
     def load_data(self):
 
+        super().load_data()
+
         self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = Graph_loader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
 
     def load_pretrained_model(self):
