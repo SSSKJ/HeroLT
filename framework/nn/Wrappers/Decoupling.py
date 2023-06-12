@@ -44,11 +44,6 @@ class Decoupling(BaseModel):
         
         # Initialize model
         self.__init_model()
-        
-        # Under training mode, initialize training steps, optimizers, schedulers, criterions, and centroids
-        # If using steps for training, we need to calculate training steps 
-        # for each epoch based on actual number of training data instead of 
-        # oversampled data number 
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
