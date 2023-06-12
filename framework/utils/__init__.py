@@ -521,7 +521,7 @@ def separator_ht(dist, method='pareto_28', degree=False): # Head / Tail separato
 
         return ht_dict
 
-def accuracy(output, labels, sep_point=None, sep=None, pre=None):
+def Graph_accuracy(output, labels, sep_point=None, sep=None, pre=None):
     if sep in ['T', 'TH', 'TT']:
         labels = labels - sep_point # [4,5,6] -> [0,1,2]
 
@@ -570,7 +570,7 @@ def confusion(output, labels, sep_point=None, sep=None):
         return confusion_matrix(labels, pred)
 
 def performance_measure(output, labels, sep_point=None, sep=None, pre=None):
-    acc = accuracy(output, labels, sep_point=sep_point, sep=sep, pre=pre)*100
+    acc = Graph_accuracy(output, labels, sep_point=sep_point, sep=sep, pre=pre)*100
     mAP = mean_average_precision(output.cpu().detach(), labels.cpu().detach(), sep_point=sep_point, sep=sep) * 100
 
     if len(labels) == 0:
@@ -754,7 +754,7 @@ def performance_per_class(output, labels, sep_point=None, sep=None, pre=None):
     num_classes = len(set(labels.tolist()))
     for i in range(num_classes):
         c_idx = (labels==i).nonzero()[:,-1].tolist()
-        acc = accuracy(output[c_idx], labels[c_idx], sep_point=sep_point, sep=sep, pre=pre) * 100
+        acc = Graph_accuracy(output[c_idx], labels[c_idx], sep_point=sep_point, sep=sep, pre=pre) * 100
         macro_F = f1_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach(), average='macro') * 100
         gmean = geometric_mean_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach(), average='macro') * 100
         bacc = balanced_accuracy_score(labels[c_idx].cpu().detach(), output[c_idx].cpu().detach()) * 100
@@ -904,3 +904,144 @@ def print_grad_norm(named_parameters, verbose=False):
     print('-------------------------------')
 
     return total_norm
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self, name, fmt=':f'):
+        self.name = name
+        self.fmt = fmt
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+    def __str__(self):
+        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        return fmtstr.format(**self.__dict__)
+
+
+class ProgressMeter(object):
+    def __init__(self, num_batches, meters, prefix=""):
+        self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
+        self.meters = meters
+        self.prefix = prefix
+
+    def display(self, batch, logger):
+        entries = [self.prefix + self.batch_fmtstr.format(batch)]
+        entries += [str(meter) for meter in self.meters]
+        logger.info('\t'.join(entries))
+
+    def _get_batch_fmtstr(self, num_batches):
+        num_digits = len(str(num_batches // 1))
+        fmt = '{:' + str(num_digits) + 'd}'
+        return '[' + fmt + '/' + fmt.format(num_batches) + ']'
+    
+
+def calibration(true_labels, pred_labels, confidences, num_bins=15):
+    """Collects predictions into bins used to draw a reliability diagram.
+
+    Arguments:
+        true_labels: the true labels for the test examples
+        pred_labels: the predicted labels for the test examples
+        confidences: the predicted confidences for the test examples
+        num_bins: number of bins
+
+    The true_labels, pred_labels, confidences arguments must be NumPy arrays;
+    pred_labels and true_labels may contain numeric or string labels.
+
+    For a multi-class model, the predicted label and confidence should be those
+    of the highest scoring class.
+
+    Returns a dictionary containing the following NumPy arrays:
+        accuracies: the average accuracy for each bin
+        confidences: the average confidence for each bin
+        counts: the number of examples in each bin
+        bins: the confidence thresholds for each bin
+        avg_accuracy: the accuracy over the entire test set
+        avg_confidence: the average confidence over the entire test set
+        expected_calibration_error: a weighted average of all calibration gaps
+        max_calibration_error: the largest calibration gap across all bins
+    """
+    assert(len(confidences) == len(pred_labels))
+    assert(len(confidences) == len(true_labels))
+    assert(num_bins > 0)
+
+    bin_size = 1.0 / num_bins
+    bins = np.linspace(0.0, 1.0, num_bins + 1)
+    indices = np.digitize(confidences, bins, right=True)
+
+    bin_accuracies = np.zeros(num_bins, dtype=np.float)
+    bin_confidences = np.zeros(num_bins, dtype=np.float)
+    bin_counts = np.zeros(num_bins, dtype=np.int)
+
+    for b in range(num_bins):
+        selected = np.where(indices == b + 1)[0]
+        if len(selected) > 0:
+            bin_accuracies[b] = np.mean(true_labels[selected] == pred_labels[selected])
+            bin_confidences[b] = np.mean(confidences[selected])
+            bin_counts[b] = len(selected)
+
+    avg_acc = np.sum(bin_accuracies * bin_counts) / np.sum(bin_counts)
+    avg_conf = np.sum(bin_confidences * bin_counts) / np.sum(bin_counts)
+
+    gaps = np.abs(bin_accuracies - bin_confidences)
+    ece = np.sum(gaps * bin_counts) / np.sum(bin_counts)
+    mce = np.max(gaps)
+
+    return { "accuracies": bin_accuracies, 
+             "confidences": bin_confidences, 
+             "counts": bin_counts, 
+             "bins": bins,
+             "avg_accuracy": avg_acc,
+             "avg_confidence": avg_conf,
+             "expected_calibration_error": ece,
+             "max_calibration_error": mce }
+
+
+def mixup_data(x, y, alpha=1.0, use_cuda=True):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        lam = 1
+
+    batch_size = x.size()[0]
+    if use_cuda:
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_x = lam * x + (1 - lam) * x[index, :]
+    y_a, y_b = y, y[index]
+
+    return mixed_x, y_a, y_b, lam
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            res.append(correct_k.mul_(100.0 / batch_size))
+        return res
