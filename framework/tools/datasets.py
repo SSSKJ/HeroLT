@@ -1,7 +1,8 @@
 from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from torch_geometric.utils.loop import add_self_loops, remove_self_loops
-from torch_geometric.utils import stochastic_blockmodel_graph, to_undirected, is_undirected, from_scipy_sparse_matrix
+from torch_geometric.utils import to_undirected, is_undirected, from_scipy_sparse_matrix
+
 
 import os
 import os.path as osp
@@ -12,6 +13,7 @@ from sklearn import preprocessing
 
 from utils import *
 from data import *
+from .ClassAwareSampler import *
 
 # Dataset definiation from Decoupling
 class Decoupling_LT_Dataset(Dataset):
@@ -314,12 +316,12 @@ import numpy as np
 from PIL import Image
 import random
 
-class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+class TDE_IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
     cls_num = 10
 
     def __init__(self, phase, imbalance_ratio, root = '/gruntdata5/kaihua/datasets', imb_type='exp'):
         train = True if phase == "train" else False
-        super(IMBALANCECIFAR10, self).__init__(root, train, transform=None, target_transform=None, download=True)
+        super(TDE_IMBALANCECIFAR10, self).__init__(root, train, transform=None, target_transform=None, download=True)
         self.train = train
         if self.train:
             img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imbalance_ratio)
@@ -419,7 +421,7 @@ class IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
             cls_num_list.append(self.num_per_cls_dict[i])
         return cls_num_list
 
-class IMBALANCECIFAR100(IMBALANCECIFAR10):
+class TDE_IMBALANCECIFAR100(TDE_IMBALANCECIFAR10):
     """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
     This is a subclass of the `CIFAR10` Dataset.
     """
@@ -441,3 +443,398 @@ class IMBALANCECIFAR100(IMBALANCECIFAR10):
         'md5': '7973b15100ade9c7d40fb424638fde48',
     }
 
+class MiSLAS_LT_Dataset(Dataset):
+    num_classes = 8142
+
+    def __init__(self, root, txt, transform=None):
+        self.img_path = []
+        self.targets = []
+        self.transform = transform
+        with open(txt) as f:
+            for line in f:
+                self.img_path.append(os.path.join(root, line.split()[0]))
+                self.targets.append(int(line.split()[1]))
+        
+        cls_num_list_old = [np.sum(np.array(self.targets) == i) for i in range(self.num_classes)]
+        
+        # generate class_map: class index sort by num (descending)
+        sorted_classes = np.argsort(-np.array(cls_num_list_old))
+        self.class_map = [0 for i in range(self.num_classes)]
+        for i in range(self.num_classes):
+            self.class_map[sorted_classes[i]] = i
+        
+        self.targets = np.array(self.class_map)[self.targets].tolist()
+
+        self.class_data = [[] for i in range(self.num_classes)]
+        for i in range(len(self.targets)):
+            j = self.targets[i]
+            self.class_data[j].append(i)
+
+        self.cls_num_list = [np.sum(np.array(self.targets)==i) for i in range(self.num_classes)]
+
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, index):
+        path = self.img_path[index]
+        target = self.targets[index]
+
+        with open(path, 'rb') as f:
+            sample = Image.open(f).convert('RGB')
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample, target 
+
+class LT_Dataset_Eval(Dataset):
+    num_classes = 365
+
+    def __init__(self, root, txt, class_map, transform=None):
+        self.img_path = []
+        self.targets = []
+        self.transform = transform
+        self.class_map = class_map
+        with open(txt) as f:
+            for line in f:
+                self.img_path.append(os.path.join(root, line.split()[0]))
+                self.targets.append(int(line.split()[1]))
+
+        self.targets = np.array(self.class_map)[self.targets].tolist()
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, index):
+        path = self.img_path[index]
+        target = self.targets[index]
+
+        with open(path, 'rb') as f:
+            sample = Image.open(f).convert('RGB')
+        if self.transform is not None:
+            sample = self.transform(sample)
+        return sample, target
+    
+class Places_LT(object):
+    def __init__(self, distributed, root="", batch_size=60, num_works=40):
+        
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
+            transforms.ToTensor(),
+            normalize,
+            ])
+        
+
+        transform_test = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ])
+        
+        train_txt = "./datasets/data_txt/Places_LT_train.txt"
+        eval_txt = "./datasets/data_txt/Places_LT_test.txt"
+
+        
+        train_dataset = MiSLAS_LT_Dataset(root, train_txt, transform=transform_train)
+        eval_dataset = LT_Dataset_Eval(root, eval_txt, transform=transform_test, class_map=train_dataset.class_map)
+        
+        self.cls_num_list = train_dataset.cls_num_list
+
+        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
+        self.train_instance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+
+        balance_sampler = ClassAwareSampler(train_dataset)
+        self.train_balance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
+        self.eval = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True)
+
+class iNa2018(object):
+    def __init__(self, distributed, root="", batch_size=60, num_works=40):
+        
+        normalize = transforms.Normalize(mean=[0.466, 0.471, 0.380], std=[0.195, 0.194, 0.192])
+        
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
+            transforms.ToTensor(),
+            normalize,
+            ])
+        
+
+        transform_test = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ])
+
+        train_txt = "./datasets/data_txt/iNaturalist18_train.txt"
+        eval_txt = "./datasets/data_txt/iNaturalist18_val.txt"
+        
+        train_dataset = MiSLAS_LT_Dataset(root, train_txt, transform=transform_train)
+        eval_dataset = LT_Dataset_Eval(root, eval_txt, transform=transform_test, class_map=train_dataset.class_map)
+        
+        self.cls_num_list = train_dataset.cls_num_list
+
+        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
+        self.train_instance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+
+        balance_sampler = ClassAwareSampler(train_dataset)
+        self.train_balance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
+        self.eval = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True)
+        
+class ImageNet_LT(object):
+    def __init__(self, distributed, root="", batch_size=60, num_works=40):
+        
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
+            transforms.ToTensor(),
+            normalize,
+            ])
+        
+
+        transform_test = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                normalize,
+            ])
+
+        
+        train_txt = "./datasets/data_txt/ImageNet_LT_train.txt"
+        eval_txt = "./datasets/data_txt/ImageNet_LT_test.txt"
+        
+        train_dataset = MiSLAS_LT_Dataset(root, train_txt, transform=transform_train)
+        eval_dataset = LT_Dataset_Eval(root, eval_txt, transform=transform_test, class_map=train_dataset.class_map)
+        
+        self.cls_num_list = train_dataset.cls_num_list
+
+        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
+        self.train_instance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+
+        balance_sampler = ClassAwareSampler(train_dataset)
+        self.train_balance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
+        self.eval = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True)
+        
+class MiSLAS_IMBALANCECIFAR100(torchvision.datasets.CIFAR100):
+    cls_num = 100
+
+    def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
+                 transform=None, target_transform=None,
+                 download=False):
+        super(MiSLAS_IMBALANCECIFAR100, self).__init__(root, train, transform, target_transform, download)
+        np.random.seed(rand_number)
+        img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
+        self.gen_imbalanced_data(img_num_list)
+
+    def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
+        img_max = len(self.data) / cls_num
+        img_num_per_cls = []
+        if imb_type == 'exp':
+            for cls_idx in range(cls_num):
+                num = img_max * (imb_factor**(cls_idx / (cls_num - 1.0)))
+                img_num_per_cls.append(int(num))
+        elif imb_type == 'step':
+            for cls_idx in range(cls_num // 2):
+                img_num_per_cls.append(int(img_max))
+            for cls_idx in range(cls_num // 2):
+                img_num_per_cls.append(int(img_max * imb_factor))
+        else:
+            img_num_per_cls.extend([int(img_max)] * cls_num)
+        return img_num_per_cls
+
+    def gen_imbalanced_data(self, img_num_per_cls):
+        new_data = []
+        new_targets = []
+        targets_np = np.array(self.targets, dtype=np.int64)
+        classes = np.unique(targets_np)
+        # np.random.shuffle(classes)
+        self.num_per_cls_dict = dict()
+        for the_class, the_img_num in zip(classes, img_num_per_cls):
+            self.num_per_cls_dict[the_class] = the_img_num
+            idx = np.where(targets_np == the_class)[0]
+            np.random.shuffle(idx)
+            selec_idx = idx[:the_img_num]
+            new_data.append(self.data[selec_idx, ...])
+            new_targets.extend([the_class, ] * the_img_num)
+        new_data = np.vstack(new_data)
+        self.data = new_data
+        self.targets = new_targets
+        
+    def get_cls_num_list(self):
+        cls_num_list = []
+        for i in range(self.cls_num):
+            cls_num_list.append(self.num_per_cls_dict[i])
+        return cls_num_list
+    
+class MiSLAS_IMBALANCECIFAR10(torchvision.datasets.CIFAR10):
+    cls_num = 10
+
+    def __init__(self, root, imb_type='exp', imb_factor=0.01, rand_number=0, train=True,
+                 transform=None, target_transform=None,
+                 download=False):
+        super(MiSLAS_IMBALANCECIFAR10, self).__init__(root, train, transform, target_transform, download)
+        np.random.seed(rand_number)
+        img_num_list = self.get_img_num_per_cls(self.cls_num, imb_type, imb_factor)
+        self.gen_imbalanced_data(img_num_list)
+
+    def get_img_num_per_cls(self, cls_num, imb_type, imb_factor):
+        img_max = len(self.data) / cls_num
+        img_num_per_cls = []
+        if imb_type == 'exp':
+            for cls_idx in range(cls_num):
+                num = img_max * (imb_factor**(cls_idx / (cls_num - 1.0)))
+                img_num_per_cls.append(int(num))
+        elif imb_type == 'step':
+            for cls_idx in range(cls_num // 2):
+                img_num_per_cls.append(int(img_max))
+            for cls_idx in range(cls_num // 2):
+                img_num_per_cls.append(int(img_max * imb_factor))
+        else:
+            img_num_per_cls.extend([int(img_max)] * cls_num)
+        return img_num_per_cls
+
+    def gen_imbalanced_data(self, img_num_per_cls):
+        new_data = []
+        new_targets = []
+        targets_np = np.array(self.targets, dtype=np.int64)
+        classes = np.unique(targets_np)
+        # np.random.shuffle(classes)
+        self.num_per_cls_dict = dict()
+        for the_class, the_img_num in zip(classes, img_num_per_cls):
+            self.num_per_cls_dict[the_class] = the_img_num
+            idx = np.where(targets_np == the_class)[0]
+            np.random.shuffle(idx)
+            selec_idx = idx[:the_img_num]
+            new_data.append(self.data[selec_idx, ...])
+            new_targets.extend([the_class, ] * the_img_num)
+        new_data = np.vstack(new_data)
+        self.data = new_data
+        self.targets = new_targets
+        
+    def get_cls_num_list(self):
+        cls_num_list = []
+        for i in range(self.cls_num):
+            cls_num_list.append(self.num_per_cls_dict[i])
+        return cls_num_list
+        
+class CIFAR100_LT(object):
+    def __init__(self, distributed, root='./data/cifar100', imb_type='exp',
+                    imb_factor=0.01, batch_size=128, num_works=40):
+
+        train_transform = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+
+        
+
+        eval_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+        
+        
+        train_dataset = MiSLAS_IMBALANCECIFAR100(root=root, imb_type=imb_type, imb_factor=imb_factor, rand_number=0, train=True, download=True, transform=train_transform)
+        eval_dataset = torchvision.datasets.CIFAR100(root=root, train=False, download=True, transform=eval_transform)
+        
+        self.cls_num_list = train_dataset.get_cls_num_list()
+
+        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
+        self.train_instance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+
+        balance_sampler = ClassAwareSampler(train_dataset)
+        self.train_balance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
+        self.eval = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True)
+        
+
+class CIFAR10_LT(object):
+
+    def __init__(self, distributed, root='./data/cifar10', imb_type='exp',
+                    imb_factor=0.01, batch_size=128, num_works=40):
+
+        train_transform = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+
+        
+        eval_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+        
+        
+        train_dataset = MiSLAS_IMBALANCECIFAR10(root=root, imb_type=imb_type, imb_factor=imb_factor, rand_number=0, train=True, download=True, transform=train_transform)
+        eval_dataset = torchvision.datasets.CIFAR10(root=root, train=False, download=True, transform=eval_transform)
+        
+        self.cls_num_list = train_dataset.get_cls_num_list()
+
+        self.dist_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset) if distributed else None
+        self.train_instance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=True,
+            num_workers=num_works, pin_memory=True, sampler=self.dist_sampler)
+
+        balance_sampler = ClassAwareSampler(train_dataset)
+        self.train_balance = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True, sampler=balance_sampler)
+
+        self.eval = torch.utils.data.DataLoader(
+            eval_dataset,
+            batch_size=batch_size, shuffle=False,
+            num_workers=num_works, pin_memory=True)
