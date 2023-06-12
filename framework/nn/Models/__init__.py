@@ -27,4 +27,7 @@ from .BBN_Combiner import *
 from .BBN_ResNet import *
 from .BBN_ResNet_cifar import *
 from .ResNet32Feature import *
-from .Causal_Norm_Classifier import *
+from .CausalNormClassifier import *
+from .MiSLAS_resnet import *
+from .MiSLAS_resnet_cifar import *
+from .MiSLAS_resnet_places import *
