@@ -2,14 +2,14 @@ from HeroLT.utils import source_import
 from HeroLT.nn.Wrappers import BaseModel
 from HeroLT.nn.Dataloaders import DecouplingLoader
 from HeroLT.nn.Samplers import ClassAwareSampler
-
-from utils import *
-from utils.logger import Logger
+from HeroLT.utils.logger import Logger
+from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
 
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
 
+import os
 import copy
 import pickle
 import numpy as np
