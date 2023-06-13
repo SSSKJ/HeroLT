@@ -1,8 +1,8 @@
 import yaml
 import os
 
-import data
-from utils import special_mkdir
+from HeroLT.data import dataset_list
+from HeroLT.utils import special_mkdir
 
 class BaseModel:
 
@@ -15,7 +15,7 @@ class BaseModel:
         
         self.model_name = model_name
         self.dataset_name = dataset_name.lower()
-        if self.dataset_name not in data.dataset_list:
+        if self.dataset_name not in dataset_list:
             raise RuntimeError(f'Dataset {self.dataset_name} not match')
         
         self.base_dir = base_dir
