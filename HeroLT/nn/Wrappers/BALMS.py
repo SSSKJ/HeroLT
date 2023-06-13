@@ -1,14 +1,16 @@
 from HeroLT.utils import source_import
 from HeroLT.nn.Wrappers import BaseModel
-from utils import *
-from Schedulers import CosineAnnealingLRWarmup
-from utils.logger import Logger
+from HeroLT.nn.Schedulers import CosineAnnealingLRWarmup
+from HeroLT.utils.logger import Logger
+from HeroLT.nn.Dataloaders import BALMSDataLoader
+from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
 
 import torch
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+import os
 import copy
 import pickle
 import numpy as np
@@ -34,15 +36,15 @@ class BALMS(BaseModel):
         self.__load_config()
 
         self.test_mode = test_mode
-
         self.training_opt = self.config['training_opt']
 
         self.logger = Logger(self.base_dir, self.model_name, self.dataset_name)
         self.logger.log(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
-        self.meta_sample = None
+        self.meta_sample = False
         self.learner = None
-        
+        self.networks = None
+
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.training_opt = self.config['training_opt']
         self.memory = self.config['memory']
@@ -53,6 +55,83 @@ class BALMS(BaseModel):
         self.__init_model()
 
 
+    def __init_model(self):
+
+        networks_defs = self.config['networks']
+        self.networks = {}
+        self.model_optim_params_list = []
+
+        if self.meta_sample:
+            # init meta optimizer
+            self.optimizer_meta = torch.optim.Adam(self.learner.parameters(),
+                                                   lr=self.training_opt['sampler'].get('lr', 0.01))
+
+        self.logger.log("Using", torch.cuda.device_count(), "GPUs.")
+        
+        for key, val in networks_defs.items():
+
+            # Networks
+            def_file = val['def_file']
+            # model_args = list(val['params'].values())
+            # model_args.append(self.test_mode)
+            model_args = val['params']
+            model_args.update({'test': self.test_mode})
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path})
+
+            self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(**model_args)
+            if 'KNNClassifier' in type(self.networks[key]).__name__:
+                # Put the KNN classifier on one single GPU
+                self.networks[key] = self.networks[key].cuda()
+            else:
+                self.networks[key] = nn.DataParallel(self.networks[key]).cuda()
+
+            if 'fix' in val and val['fix']:
+                self.logger.log('Freezing feature weights except for self attention weights (if exist).')
+                for param_name, param in self.networks[key].named_parameters():
+                    # Freeze all parameters except self attention parameters
+                    if 'selfatt' not in param_name and 'fc' not in param_name:
+                        param.requires_grad = False
+                    # self.logger.log('  | ', param_name, param.requires_grad)
+
+            if self.meta_sample and key!='classifier':
+                # avoid adding classifier parameters to the optimizer,
+                # otherwise error will be raised when computing higher gradients
+                continue
+
+            # Optimizer list
+            optim_params = val['optim_params']
+            self.model_optim_params_list.append({'params': self.networks[key].parameters(),
+                                                'lr': optim_params['lr'],
+                                                'momentum': optim_params['momentum'],
+                                                'weight_decay': optim_params['weight_decay']})
+            
+    def __init_criterions(self):
+
+        criterion_defs = self.config['criterions']
+        self.criterions = {}
+        self.criterion_weights = {}
+        
+        ## todo: check freq path
+        for key, val in criterion_defs.items():
+            def_file = val['def_file']
+            loss_args = list(val['loss_params'].values())
+
+            self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
+            self.criterion_weights[key] = val['weight']
+          
+            if val['optim_params']:
+                self.logger.log('Initializing criterion optimizer.')
+                optim_params = val['optim_params']
+                optim_params = [{'params': self.criterions[key].parameters(),
+                                'lr': optim_params['lr'],
+                                'momentum': optim_params['momentum'],
+                                'weight_decay': optim_params['weight_decay']}]
+                # Initialize criterion optimizer and scheduler
+                self.criterion_optimizer, \
+                self.criterion_optimizer_scheduler = self.__init_optimizer_and_scheduler(optim_params)
+            else:
+                self.criterion_optimizer = None
+    
     def __init_optimizer_and_scheduler(self, optim_params):
 
         # Initialize model optimizer and scheduler
@@ -81,82 +160,6 @@ class BALMS(BaseModel):
                                                   step_size=self.scheduler_params['step_size'],
                                                   gamma=self.scheduler_params['gamma'])
         return optimizer, scheduler
-
-    def __init_criterions(self):
-
-        criterion_defs = self.config['criterions']
-        self.criterions = {}
-        self.criterion_weights = {}
-
-        for key, val in criterion_defs.items():
-            def_file = val['def_file']
-            loss_args = list(val['loss_params'].values())
-
-            self.criterions[key] = source_import(def_file).create_loss(*loss_args).cuda()
-            self.criterion_weights[key] = val['weight']
-          
-            if val['optim_params']:
-                self.logger.log('Initializing criterion optimizer.')
-                optim_params = val['optim_params']
-                optim_params = [{'params': self.criterions[key].parameters(),
-                                'lr': optim_params['lr'],
-                                'momentum': optim_params['momentum'],
-                                'weight_decay': optim_params['weight_decay']}]
-                # Initialize criterion optimizer and scheduler
-                self.criterion_optimizer, \
-                self.criterion_optimizer_scheduler = self.__init_optimizer_and_scheduler(optim_params)
-            else:
-                self.criterion_optimizer = None
-
-
-    def __init_model(self):
-
-        networks_defs = self.config['networks']
-        self.networks = {}
-        self.model_optim_params_list = []
-
-        if self.meta_sample:
-            # init meta optimizer
-            self.optimizer_meta = torch.optim.Adam(self.learner.parameters(),
-                                                   lr=self.training_opt['sampler'].get('lr', 0.01))
-
-        self.logger.log("Using", torch.cuda.device_count(), "GPUs.")
-        
-        for key, val in networks_defs.items():
-
-            # Networks
-            def_file = val['def_file']
-            # model_args = list(val['params'].values())
-            # model_args.append(self.test_mode)
-            model_args = val['params']
-            model_args.update({'test': self.test_mode})
-
-            self.networks[key] = source_import(def_file).create_model(**model_args)
-            if 'KNNClassifier' in type(self.networks[key]).__name__:
-                # Put the KNN classifier on one single GPU
-                self.networks[key] = self.networks[key].cuda()
-            else:
-                self.networks[key] = nn.DataParallel(self.networks[key]).cuda()
-
-            if 'fix' in val and val['fix']:
-                self.logger.log('Freezing feature weights except for self attention weights (if exist).')
-                for param_name, param in self.networks[key].named_parameters():
-                    # Freeze all parameters except self attention parameters
-                    if 'selfatt' not in param_name and 'fc' not in param_name:
-                        param.requires_grad = False
-                    # self.logger.log('  | ', param_name, param.requires_grad)
-
-            if self.meta_sample and key!='classifier':
-                # avoid adding classifier parameters to the optimizer,
-                # otherwise error will be raised when computing higher gradients
-                continue
-
-            # Optimizer list
-            optim_params = val['optim_params']
-            self.model_optim_params_list.append({'params': self.networks[key].parameters(),
-                                                'lr': optim_params['lr'],
-                                                'momentum': optim_params['momentum'],
-                                                'weight_decay': optim_params['weight_decay']})
     
 
     def train(self):
@@ -166,12 +169,6 @@ class BALMS(BaseModel):
             self.load_data(train = True)
 
         self.data = self.__training_data
-
-        # Initialize optimizer and scheduler
-        self.__init_optimizer_and_scheduler(self.model_optim_params_list)
-        self.__init_criterions()
-        if self.memory['init_centroids']:
-            self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
 
         # Compute epochs from iterations
         if self.training_opt.get('num_iterations', False):
@@ -186,16 +183,16 @@ class BALMS(BaseModel):
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num  \
                                 / self.training_opt['batch_size'])
-        
 
+        # Initialize optimizer and scheduler
+        self.__init_optimizer_and_scheduler(self.model_optim_params_list)
+        self.__init_criterions()
         if self.memory['init_centroids']:
-            self.criterions['FeatureLoss'].centroids.data = \
-                self.__centroids_cal(self.data['train_plain'])
-            
-        # When training the network
-        self.logger.log('Phase: train')
+            self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
 
-        self.logger.log('Do shuffle??? --- ', self.do_shuffle)
+        # When training the network
+        self.logger.log('-----------------------------------Phase: train-----------------------------------')
+        self.logger.log(f'Do shuffle??? --- {self.do_shuffle}')
 
         # Initialize best model
         best_model_weights = {}
@@ -260,41 +257,32 @@ class BALMS(BaseModel):
                         minibatch_loss_total = self.loss.item()
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        self.logger.log('Epoch: [%d/%d]' 
-                                     % (epoch, self.training_opt['num_epochs']),
-                                     'Step: %5d' 
-                                     % (step),
-                                     'Minibatch_loss_feature: %.3f' 
-                                     % (minibatch_loss_feat) if minibatch_loss_feat else '',
-                                     'Minibatch_loss_performance: %.3f'
-                                     % (minibatch_loss_perf) if minibatch_loss_perf else '',
-                                     'Minibatch_accuracy_micro: %.3f'
-                                      % (minibatch_acc))
+                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.log('Step: %5d' % (step))
+                        self.logger.log('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
+                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
 
                         loss_info = {
-                            'Epoch': epoch,
-                            'Step': step,
-                            'Total': minibatch_loss_total,
-                            'CE': minibatch_loss_perf,
-                            'feat': minibatch_loss_feat
-                        }
+                                'Epoch': epoch,
+                                'Step': step,
+                                'Total': minibatch_loss_total,
+                                'CE': minibatch_loss_perf,
+                                'feat': minibatch_loss_feat
+                            }
 
+                        self.logger.log_loss(loss_info)
 
-                # Update priority weights if using PrioritizedSampler
-                # if self.training_opt['sampler'] and \
-                #    self.training_opt['sampler']['type'] == 'PrioritizedSampler':
                 if hasattr(self.data['train'].sampler, 'update_weights'):
                     if hasattr(self.data['train'].sampler, 'ptype'):
                         ptype = self.data['train'].sampler.ptype 
                     else:
                         ptype = 'score'
                     ws = get_priority(ptype, self.logits.detach(), labels)
-                    # ws = logits2score(self.logits.detach(), labels)
                     inlist = [indexes.cpu().numpy(), ws]
                     if self.training_opt['sampler']['type'] == 'ClassPrioritySampler':
                         inlist.append(labels.cpu().numpy())
                     self.data['train'].sampler.update_weights(*inlist)
-                    # self.data['train'].sampler.update_weights(indexes.cpu().numpy(), ws)
 
             if hasattr(self.data['train'].sampler, 'get_weights'):
                 self.logger.log_ws(epoch, self.data['train'].sampler.get_weights())
@@ -315,6 +303,8 @@ class BALMS(BaseModel):
                                   self.total_labels)
                 self.data['train'].sampler.reset_priority(ws, self.total_labels.cpu().numpy())
 
+            # Log results
+            self.logger.log_acc(rsls)
 
             # Under validation, the best model need to be updated
             if self.eval_acc_mic_top1 > best_acc:
@@ -389,9 +379,11 @@ class BALMS(BaseModel):
             splits = ['train', 'train_plain', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            self.__training_data = {x: TDE_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
-                                            dataset=dataset, phase=x, 
+            self.__training_data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+                                            dataset=dataset, 
+                                            phase=x, 
                                             batch_size=self.training_opt['batch_size'],
+                                            logger=self.logger,
                                             sampler_dic=sampler_dic,
                                             num_workers=self.training_opt['num_workers'],
                                             cifar_imb_ratio=self.training_opt['cifar_imb_ratio'] if 'cifar_imb_ratio' in self.training_opt else None)
@@ -403,9 +395,11 @@ class BALMS(BaseModel):
                         'params': {'is_infinite': True}
                     }
                 # use Class Balanced Sampler to create meta set
-                self.__training_data['meta'] = TDE_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
-                                            dataset=dataset, phase='train' if 'CIFAR' in dataset else 'val',
+                self.__training_data['meta'] = BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+                                            dataset=dataset, 
+                                            phase='train' if 'CIFAR' in dataset else 'val',
                                             batch_size=sampler_defs.get('meta_batch_size', self.training_opt['batch_size'], ),
+                                            logger=self.logger,
                                             sampler_dic=cbs_sampler_dic,
                                             num_workers=self.training_opt['num_workers'],
                                             cifar_imb_ratio=self.training_opt['cifar_imb_ratio'] if 'cifar_imb_ratio' in self.training_opt else None,
@@ -426,14 +420,16 @@ class BALMS(BaseModel):
             else:
                 splits = ['train', 'val', 'test']
                 self.test_split = 'test'
-            if dataset == 'imageNet-lt':
+            if dataset == 'imagenet_lt':
                 splits = ['train', 'val']
                 self.test_split = 'val'
             splits.append('train_plain')
 
-            data = {x: TDE_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
-                                            dataset=dataset, phase=x,
+            data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+                                            dataset=dataset, 
+                                            phase=x,
                                             batch_size=self.training_opt['batch_size'],
+                                            logger=self.logger,
                                             sampler_dic=None, 
                                             test_open=False,
                                             num_workers=self.training_opt['num_workers'],
@@ -445,7 +441,7 @@ class BALMS(BaseModel):
             self.data = data
         
 
-    def __batch_forward (self, inputs, labels=None, centroids=False, feature_ext=False, phase='train'):
+    def __batch_forward(self, inputs, labels=None, centroids=False, feature_ext=False, phase='train'):
         '''
         This is a general single batch running function. 
         '''
@@ -588,17 +584,16 @@ class BALMS(BaseModel):
             rsl['train_low'] += len(mixup_preds) / 2 / n_total * n_top1_low
 
         # Top-1 accuracy and additional string
-        self.logger.log('\n Training acc Top1: %.3f \n' % (rsl['train_all']),
-                     'Many_top1: %.3f' % (rsl['train_many']),
-                     'Median_top1: %.3f' % (rsl['train_median']),
-                     'Low_top1: %.3f' % (rsl['train_low']),
-                     '\n')
+        self.logger.log('Training acc Top1: %.3f ' % (rsl['train_all']))
+        self.logger.log('Many_top1: %.3f' % (rsl['train_many']))
+        self.logger.log('Median_top1: %.3f' % (rsl['train_median']))
+        self.logger.log('Low_top1: %.3f' % (rsl['train_low']))
 
         return rsl
 
     def eval(self, phase='val', openset=False, save_feat=False):
 
-        self.logger.log('Phase: %s' % (phase))
+        self.logger.log('-----------------------------------Phase: %s-----------------------------------' % (phase))
  
         torch.cuda.empty_cache()
 
@@ -612,7 +607,6 @@ class BALMS(BaseModel):
 
         get_feat_only = save_feat
         feats_all, labels_all, idxs_all, logits_all = [], [], [], []
-        featmaps_all = []
         # Iterate over dataset
         for inputs, labels, paths in tqdm(self.data[phase]):
             inputs, labels = inputs.cuda(), labels.cuda()
@@ -644,7 +638,7 @@ class BALMS(BaseModel):
             elif phase == 'val':
                 name = 'val{}_all.pkl'.format(typ)
 
-            fname = os.path.join(self.training_opt['log_dir'], name)
+            fname = f'{self.output_path}/{name}'
             self.logger.log('===> Saving feats to ' + fname)
             with open(fname, 'wb') as f:
                 pickle.dump({
@@ -655,12 +649,6 @@ class BALMS(BaseModel):
                             f, protocol=4) 
             return 
         probs, preds = F.softmax(self.total_logits.detach(), dim=1).max(dim=1)
-
-        if openset:
-            preds[probs < self.training_opt['open_threshold']] = -1
-            self.openset_acc = mic_acc_cal(preds[self.total_labels == -1],
-                                            self.total_labels[self.total_labels == -1])
-            self.logger.log('\n\nOpenset Accuracy: %.3f' % self.openset_acc)
 
         # Calculate the overall accuracy and F measurement
         self.eval_acc_mic_top1= mic_acc_cal(preds[self.total_labels != -1],
@@ -674,44 +662,25 @@ class BALMS(BaseModel):
                                  self.total_labels[self.total_labels != -1], 
                                  self.data['train'],
                                  acc_per_cls=True)
-        # Top-1 accuracy and additional string
-        s = ['\n\n',
-                     'Phase: %s' 
-                     % (phase),
-                     '\n\n',
-                     'Evaluation_accuracy_micro_top1: %.3f' 
-                     % (self.eval_acc_mic_top1),
-                     '\n',
-                     'Averaged F-measure: %.3f' 
-                     % (self.eval_f_measure),
-                     '\n',
-                     'Many_shot_accuracy_top1: %.3f' 
-                     % (self.many_acc_top1),
-                     'Median_shot_accuracy_top1: %.3f' 
-                     % (self.median_acc_top1),
-                     'Low_shot_accuracy_top1: %.3f' 
-                     % (self.low_acc_top1),
-                     '\n']
         
         rsl = {phase + '_all': self.eval_acc_mic_top1,
                phase + '_many': self.many_acc_top1,
                phase + '_median': self.median_acc_top1,
                phase + '_low': self.low_acc_top1,
                phase + '_fscore': self.eval_f_measure}
-
-        if phase == 'val':
-            self.logger.log(s)
-        else:
-            acc_str = ["{:.1f} \t {:.1f} \t {:.1f} \t {:.1f}".format(
+        
+        self.logger.log('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
+            % (phase, self.eval_acc_mic_top1, self.eval_f_measure, self.many_acc_top1, self.median_acc_top1, self.low_acc_top1),)
+        if phase != 'val':
+            acc_str = "{:.1f} \t {:.1f} \t {:.1f} \t {:.1f}".format(
                 self.many_acc_top1 * 100,
                 self.median_acc_top1 * 100,
                 self.low_acc_top1 * 100,
-                self.eval_acc_mic_top1 * 100)]
-            self.logger.log(*s)
-            self.logger.log(*acc_str)
+                self.eval_acc_mic_top1 * 100)
+            self.logger.log(acc_str)
         
         if phase == 'test':
-            with open(os.path.join(self.training_opt['log_dir'], 'cls_accs.pkl'), 'wb') as f:
+            with open(f'{self.output_path}/cls_accs.pkl', 'wb') as f:
                 pickle.dump(self.cls_accs, f)
         return rsl
             
@@ -746,7 +715,7 @@ class BALMS(BaseModel):
                     idxs_all.append(idxs.numpy())
         
         if save_all:
-            fname = os.path.join(self.training_opt['log_dir'], 'feats_all.pkl')
+            fname = f'{self.output_path}/feats_all.pkl'
             with open(fname, 'wb') as f:
                 pickle.dump({'feats': np.concatenate(feats_all),
                              'labels': np.concatenate(labels_all),
@@ -765,10 +734,10 @@ class BALMS(BaseModel):
 
     def load_pretrained_model(self):
 
-        model_dir = f'{self.output_path}/'
+        if self.networks is None:
+            self.__init_model()
 
-        if not model_dir.endswith('.pth'):
-            model_dir = os.path.join(model_dir, 'final_model_checkpoint.pth')
+        model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
         self.logger.log('Validation on the best model.')
         self.logger.log('Loading model from %s' % (model_dir))
@@ -801,8 +770,7 @@ class BALMS(BaseModel):
             'state_dict': model_weights
         }
 
-        model_dir = os.path.join(self.training_opt['log_dir'], 
-                                 'latest_model_checkpoint.pth')
+        model_dir = f'{self.output_path}/latest_model_checkpoint.pth'
         torch.save(model_states, model_dir)
         
     def __save_model(self, epoch, best_epoch, best_model_weights, best_acc, centroids=None):
@@ -813,10 +781,18 @@ class BALMS(BaseModel):
                 'best_acc': best_acc,
                 'centroids': centroids}
 
-        model_dir = os.path.join(self.training_opt['log_dir'], 
-                                 'final_model_checkpoint.pth')
+        model_dir = f'{self.output_path}/final_model_checkpoint.pth'
 
         torch.save(model_states, model_dir)
+
+    def output_logits(self, openset=False):
+        filename = os.path.join(self.output_path, 
+                                'logits_%s'%('open' if openset else 'close'))
+        self.logger.log("Saving total logits to: %s.npz" % filename)
+        np.savez(filename, 
+                 logits=self.total_logits.detach().cpu().numpy(), 
+                 labels=self.total_labels.detach().cpu().numpy(),
+                 paths=self.total_paths)
         
 
     
