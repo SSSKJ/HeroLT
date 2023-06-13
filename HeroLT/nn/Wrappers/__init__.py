@@ -1,4 +1,5 @@
 from .BaseModel import BaseModel
+from .CVModel import CVModel
 from .BALMS import BALMS
 from .BBN import BBN
 from .Decoupling import Decoupling
