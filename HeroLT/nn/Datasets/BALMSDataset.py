@@ -1,18 +1,20 @@
 """
 Adopted from https://github.com/KaihuaTang/Long-Tailed-Recognition.pytorch
 """
-import os
+import torch
+from torch.utils.data import Dataset
 import torchvision
 import torchvision.transforms as transforms
-import numpy as np
-import json
-from PIL import Image
-from torch.utils.data import Dataset
 
-from PIL import Image, ImageEnhance, ImageOps
+import os
+import json
+
 import numpy as np
 import random
-import torch
+
+from PIL import Image, ImageEnhance, ImageOps
+
+
 
 class SubPolicy(object):
     def __init__(self, p1, operation1, magnitude_idx1, p2, operation2, magnitude_idx2, fillcolor=(128, 128, 128)):
