@@ -1,5 +1,5 @@
 from .DecouplingLoader import DecouplingLoader
-from .BAMLSDataLoader import BAMLSDataLoader
+from .BALMSDataLoader import BALMSDataLoader
 
 from torchvision import transforms
 
