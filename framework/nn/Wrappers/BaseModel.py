@@ -20,7 +20,7 @@ class BaseModel:
         
         self.base_dir = base_dir
 
-        self.output_path = f'{self.base_dir}/outputs/{self.dataset_name}/'
+        self.output_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/'
         self.__training_data = None
         self.__testing_data = None
         self.__model = None
