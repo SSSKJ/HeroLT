@@ -109,7 +109,7 @@ class Decoupling(BaseModel):
             else:
                 splits = ['train', 'val', 'test']
                 self.test_phase = 'test'
-            if dataset == 'imageNet-lt':
+            if dataset == 'imagenet_lt':
                 splits = ['train', 'val']
                 self.test_phase = 'val'
 
@@ -171,7 +171,7 @@ class Decoupling(BaseModel):
             def_file = val['def_file']
             loss_args = list(val['loss_params'].values())
 
-            self.criterions[key] = source_import(f'{self.base_dir}/nn/loss/{def_file}.py').create_loss(*loss_args).cuda()
+            self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
@@ -469,7 +469,7 @@ class Decoupling(BaseModel):
     
     def eval(self, phase='val', save_feat=False):
 
-        self.logger.log('Phase: %s' % (phase))
+        self.logger.log('-----------------------------------Phase: %s-----------------------------------' % (phase))
  
         torch.cuda.empty_cache()
 
@@ -646,7 +646,7 @@ class Decoupling(BaseModel):
             'state_dict': model_weights
         }
 
-        model_dir = os.path.join(self.output_path, 'latest_model_checkpoint.pth')
+        model_dir = f'{self.output_path}/latest_model_checkpoint.pth'
         torch.save(model_states, model_dir)
 
     def save_model(self, epoch, best_epoch, best_model_weights, best_acc, centroids=None):
