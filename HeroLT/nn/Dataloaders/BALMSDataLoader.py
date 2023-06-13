@@ -1,10 +1,10 @@
 from torch.utils.data import DataLoader
-from HeroLT.nn.Datasets.BALMSDataset import LT_Dataset, IMBALANCECIFAR10, IMBALANCECIFAR100
 
+from HeroLT.nn.Datasets.BALMSDataset import LT_Dataset, IMBALANCECIFAR10, IMBALANCECIFAR100
 from HeroLT.nn.Dataloaders import get_data_transform, RGB_statistics
 
 
-class BAMLSDataLoader:
+class BALMSDataLoader:
 
     def load_data(data_root, dataset, phase, batch_size, logger, sampler_dic=None, num_workers=4, test_open=False, shuffle=True, cifar_imb_ratio=None, meta=False):
 
