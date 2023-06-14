@@ -1,20 +1,22 @@
-from BaseModel import BaseModel
-from utils import *
-from tools.loaders import Graph_loader
-from Models import lET4G
+from HeroLT.nn.Wrappers import BaseModel
+from HeroLT.nn.Dataloaders import GraphDataLoader
+from HeroLT.utils.logger import get_logger
+from HeroLT.nn.Models import lTE4G
+from HeroLT.utils import seed_everything, performance_measure, scheduler
 
+import torch
+import torch.nn.functional as F
 import torch.optim as optim
 
 from tqdm import trange
 from copy import deepcopy
+import numpy as np
 
 class LTE4G(BaseModel):
-
 
     def __init__(
             self,
             dataset: str,
-            device: str,
             base_dir: str = '../../',
             ) -> None:
         
@@ -25,22 +27,35 @@ class LTE4G(BaseModel):
         
 
         self.__load_config()
+        self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
+        self.loaded = False
 
 
     def load_data(self):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = Graph_loader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
 
     def __init_model(self):
         
-        self.model = lET4G(self.config, self.adj).to(self.config['device'])
+        self.model = lTE4G(self.config, self.adj).to(self.config['device'])
 
     def load_pretrained_model(self):
-        ## todo
-        pass
 
+        self.loaded = True
+        ## todo: load pretrained model
+        ####### Load Pre-trained Original Imbalance graph #######
+        # self.logger('Load Pre-trained Encoder')       
+        # rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
+        # encoder_info = f'cls_{self.config['cls_og']}_cw_{self.config['class_weight']}_gamma_{self.config['gamma']}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
+        # if self.config['im_ratio != 1: # manual
+        #     pretrained_encoder = torch.load(f'./pretrained/manual/{self.config['dataset}/{self.config['im_class_num}/{self.config['im_ratio}/'+encoder_info)
+        # else: # natural
+        #     pretrained_encoder = torch.load(f'./pretrained/natural/{self.config['dataset}/'+encoder_info)
+
+        # model.load_state_dict(pretrained_encoder.state_dict())
+        pass
 
     ## optimizer for pretrained part
     def __init_optimizer_and_scheduler(self):
@@ -63,16 +78,16 @@ class LTE4G(BaseModel):
         self.load_data()
         
         for seed in range(self.config['rnd'], self.config['rnd'] + self.config['num_seed']):
-            print(f'============== seed:{seed} ==============')
+            self.logger(f'============== seed:{seed} ==============')
             seed_everything(seed)
-            print('seed:', seed)
-            print('Samples per label:', list(self.class_num_mat[:,0]))
+            self.logger(f'seed: {seed}')
+            self.logger(f'Samples per label: {list(self.class_num_mat[:,0])}')
 
-            print('-----Number of training samples in each Expert-----')
-            print('HH:', len(self.idx_train_set['HH']))
-            print('HT:', len(self.idx_train_set['HT']))
-            print('TH:', len(self.idx_train_set['TH']))
-            print('TT:', len(self.idx_train_set['TT']))
+            self.logger('-----Number of training samples in each Expert-----')
+            self.logger('HH: %s' % len(self.idx_train_set['HH']))
+            self.logger('HT: %s' % len(self.idx_train_set['HT']))
+            self.logger('TH: %s' %  len(self.idx_train_set['TH']))
+            self.logger('TT: %s' % len(self.idx_train_set['TT']))
 
             self.__init_model()
 
@@ -91,23 +106,9 @@ class LTE4G(BaseModel):
                 ht_gt[data] = (self.labels[data] >= self.config['sep_point']).type(torch.long) # head to '0', tail to '1'
         
             # ======================================= Encoder Training ======================================= #
-            if self.config['pretrained_encoder']:
-                ## todo: load pretrained model
-                ####### Load Pre-trained Original Imbalance graph #######
-                # print('Load Pre-trained Encoder')       
-                # rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
-                # encoder_info = f'cls_{self.config['cls_og']}_cw_{self.config['class_weight']}_gamma_{self.config['gamma']}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
-                # if self.config['im_ratio != 1: # manual
-                #     pretrained_encoder = torch.load(f'./pretrained/manual/{self.config['dataset}/{self.config['im_class_num}/{self.config['im_ratio}/'+encoder_info)
-                # else: # natural
-                #     pretrained_encoder = torch.load(f'./pretrained/natural/{self.config['dataset}/'+encoder_info)
-
-                # model.load_state_dict(pretrained_encoder.state_dict())
-                pass
-
-            else:
+            if not self.loaded:
                 ####### Pre-train Original Imbalance graph #######
-                print('Start Pre-training Encoder')       
+                self.logger('Start Pre-training Encoder')       
                 best_encoder = None
                 self.__init_optimizer_and_scheduler()
 
@@ -125,7 +126,7 @@ class LTE4G(BaseModel):
                         self.optimizer_ep.step()
 
                         if epoch % 100 == 0:
-                            print("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
+                            self.logger("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
 
                 val_bacc_og = []
                 test_results = []
@@ -171,12 +172,12 @@ class LTE4G(BaseModel):
                     
                     if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                         if epoch - max_idx > self.config['ep_early']:
-                            print("Early stop")
+                            self.logger("Early stop")
                         break
 
                 # todo: Save pre-trained encoder
                 # if self.config['save_encoder']:
-                #     print('Saved pre-trained Encoder')
+                #     self.logger('Saved pre-trained Encoder')
                 #     rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
                 #     encoder_info = f'cls_{self.config['cls_og}_cw_{self.config['class_weight}_gamma_{self.config['gamma}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
                 #     if self.config['im_ratio'] != 1: # manual
@@ -304,6 +305,7 @@ class LTE4G(BaseModel):
                     test_results.append([acc_test, bacc_test, precision_test, recall_test, map_test])
                     best_test_result = test_results[max_idx]
 
+                    st = "[seed {}][{}][Expert-{}][Epoch {}]".format(seed, self.args.embedder, sep, epoch)
                     st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(
                         acc_val, bacc_val, precision_val, recall_val, map_val)
                     st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(
@@ -312,11 +314,11 @@ class LTE4G(BaseModel):
                         max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
                     
                     if epoch % 100 == 0:
-                        print(st)
+                        self.logger(st)
 
                     if (epoch - max_idx >= 300) or (epoch + 1 == self.config['ep']):
                         if epoch - max_idx >= 300:
-                            print('Early Stop!')
+                            self.logger('Early Stop!')
                         break
                     
 
@@ -367,6 +369,7 @@ class LTE4G(BaseModel):
                     test_results.append([acc_test, bacc_test, precision_test, recall_test, map_test])
                     best_test_result = test_results[max_idx]
 
+                    st = "[seed {}][{}][Student-{}][Epoch {}]".format(seed, self.args.embedder, sep, epoch)
                     st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(
                         acc_val, bacc_val, precision_val, recall_val, map_val)
                     st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(
@@ -375,7 +378,7 @@ class LTE4G(BaseModel):
                         max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
                     
                     if epoch % 100 == 0:
-                        print(st)
+                        self.logger(st)
 
                     if epoch + 1 == self.config['curriculum_ep']:
                         break
@@ -401,25 +404,15 @@ class LTE4G(BaseModel):
                     final_pred[idx_mapped, self.config['sep_point']:self.config['nclass']] = pred[idx_test].cpu()
 
             acc, bacc, precision, recall, mAP = performance_measure(final_pred, self.labels[self.idx_test], pre='test')
-            # acc_list, macro_F_list, gmean_list, bacc_list = utils.performance_per_class(final_pred, self.labels[self.idx_test].detach().cpu(), pre='test')
 
-            print('=======================================================')
-            print('[LTE4G] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}'.format(acc, bacc, precision, recall, mAP))
-            # print(utils.classification(final_pred, self.labels[self.idx_test].detach().cpu()))
-            # print(utils.confusion(final_pred, self.labels[self.idx_test].detach().cpu()))
+            self.logger('=======================================================')
+            self.logger('[LTE4G] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}'.format(acc, bacc, precision, recall, mAP))
 
             seed_result['acc'].append(float(acc))
             seed_result['bacc'].append(float(bacc))
             seed_result['precision'].append(float(precision))
             seed_result['recall'].append(float(recall))
             seed_result['mAP'].append(float(mAP))
-
-            # print("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(
-            #     acc_list, macro_F_list, gmean_list, bacc_list), file=text)
-            # print("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(acc_list,
-            #                                                                                          macro_F_list,
-            #                                                                                          gmean_list,
-            #                                                                                          bacc_list))
     
         acc = seed_result['acc']
         bacc = seed_result['bacc']
@@ -427,8 +420,8 @@ class LTE4G(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        print('ACC bACC Precision Recall mAP')
-        print('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
+        self.logger('ACC bACC Precision Recall mAP')
+        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
                                                                                              np.mean(precision), np.std(precision), np.mean(recall),
                                                                                              np.std(recall), np.mean(mAP), np.std(mAP)))
-        print(self.config)
+        self.logger(self.config)
