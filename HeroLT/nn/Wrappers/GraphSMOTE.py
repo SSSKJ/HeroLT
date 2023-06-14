@@ -1,9 +1,12 @@
-from BaseModel import BaseModel
-from utils import *
-from tools.loaders import Graph_loader
-from Models import graphSMOTE
+from HeroLT.nn.Wrappers import BaseModel
+from HeroLT.nn.Dataloaders import GraphDataLoader
+from HeroLT.nn.Models import graphSMOTE
+from HeroLT.utils.logger import get_logger
+from HeroLT.utils import seed_everything, performance_measure, classification, confusion
 
 import torch.optim as optim
+
+import numpy as np
 
 from copy import deepcopy
 
@@ -23,13 +26,14 @@ class GraphSMOTE(BaseModel):
             base_dir = base_dir)
 
         self.__load_config()
+        self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
 
     def load_data(self):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = Graph_loader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
 
     def __init_model(self):
         
@@ -56,9 +60,9 @@ class GraphSMOTE(BaseModel):
         self.load_data()
         
         for seed in range(self.config['rnd'], self.config['rnd'] + self.config['num_seed']):
-            print(f'============== seed:{seed} ==============')
+            self.logger(f'============== seed:{seed} ==============')
             seed_everything(seed)
-            print('seed:', seed)
+            self.logger(f'seed: {seed}')
 
             self.__init_model()
             self.__init_optimizer_and_scheduler()
@@ -77,12 +81,12 @@ class GraphSMOTE(BaseModel):
                 self.optimizer_ep.step()
 
                 if epoch % 100 == 0:
-                    print("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
+                    self.logger("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
 
                 pretrain_losses.append(loss.item())
                 min_idx = pretrain_losses.index(min(pretrain_losses))
                 if epoch - min_idx > 500:
-                    print("Pretrain converged")
+                    self.logger("Pretrain converged")
                     break
            
 
@@ -127,19 +131,20 @@ class GraphSMOTE(BaseModel):
                 test_results.append([acc_test, bacc_test, precision_test, recall_test, map_test])
                 best_test_result = test_results[max_idx]
 
+                st = "[seed {}][{}][Epoch {}]".format(seed, 'GraphSMOTE', epoch)
                 st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(
                     acc_val, bacc_val, precision_val, recall_val, map_val)
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(
                     acc_test, bacc_test, precision_test, recall_test, map_test)
                 st += "  [*Best Test Result*][Epoch {}] ACC: {:.1f},  bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(
                     max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
-                    
+                   
                 if epoch % 100 == 0:
-                    print(st)
+                    self.logger(st)
 
                 if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                     if epoch - max_idx > self.config['ep_early']:
-                        print("Early stop")
+                        self.logger("Early stop")
                     embed = best_model.encoder(self.features)
                     output = best_model.classifier(embed)
                     best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4] = performance_measure(output[self.idx_test], self.labels[self.idx_test], pre='test')
@@ -147,10 +152,10 @@ class GraphSMOTE(BaseModel):
                     #                                                                             self.labels[
                     #                                                                                 self.idx_test],
                     #                                                                             pre='test')
-                    print("[Best Test Result] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(best_test_result[0], best_test_result[1], best_test_result[2],
+                    self.logger("[Best Test Result] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(best_test_result[0], best_test_result[1], best_test_result[2],
                                                                                                                                 best_test_result[3], best_test_result[4]))
-                    print(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
-                    print(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    self.logger(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    self.logger(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
                     break
 
             seed_result['acc'].append(float(best_test_result[0]))
@@ -158,9 +163,9 @@ class GraphSMOTE(BaseModel):
             seed_result['precision'].append(float(best_test_result[2]))
             seed_result['recall'].append(float(best_test_result[3]))
             seed_result['mAP'].append(float(best_test_result[4]))
-            # print("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(
+            # self.logger("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(
             #     acc_list, macro_F_list, gmean_list, bacc_list), file=text)
-            # print("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(acc_list, macro_F_list, gmean_list, bacc_list))
+            # self.logger("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(acc_list, macro_F_list, gmean_list, bacc_list))
 
         acc = seed_result['acc']
         bacc = seed_result['bacc']
@@ -168,15 +173,15 @@ class GraphSMOTE(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        print(
+        self.logger(
             '[Averaged result] ACC: {:.1f}+{:.1f}, bACC: {:.1f}+{:.1f}, Precision: {:.1f}+{:.1f}, Recall: {:.1f}+{:.1f}, mAP: {:.1f}+{:.1f}'.format(
                 np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision), np.std(precision),
                 np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        print('ACC bACC Precision Recall mAP')
-        print('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
+        self.logger('ACC bACC Precision Recall mAP')
+        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
                                                                                              np.mean(precision), np.std(precision), np.mean(recall),
                                                                                              np.std(recall), np.mean(mAP), np.std(mAP)))
-        print(self.config)
+        self.logger(self.config)
         
 
 
