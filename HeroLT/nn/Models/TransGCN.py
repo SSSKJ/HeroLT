@@ -4,6 +4,7 @@ from .TailGNN_Generator import Generator
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 class TransGCN(nn.Module):
     def __init__(self, nfeat, nhid, g_sigma, device, ver, ablation=0):

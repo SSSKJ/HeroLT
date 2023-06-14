@@ -32,7 +32,7 @@ class GraphSMOTE(BaseModel):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
 
     def __init_model(self):
         

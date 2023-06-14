@@ -28,14 +28,14 @@ class DotProduct_Classifier(nn.Module):
         x = self.fc(x)
         return x, None
     
-def create_model(feat_dim, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
-    print('Loading Dot Product Classifier.')
+def create_model(feat_dim, logger, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
+    logger('Loading Dot Product Classifier.')
     clf = DotProduct_Classifier(num_classes, feat_dim)
 
     if not test:
         if stage1_weights:
             assert(dataset)
-            print('Loading %s Stage 1 Classifier Weights.' % dataset)
+            logger('Loading %s Stage 1 Classifier Weights.' % dataset)
             if log_dir is not None:
                 subdir = log_dir.strip('/').split('/')[-1]
                 subdir = subdir.replace('stage2', 'stage1')
@@ -43,11 +43,11 @@ def create_model(feat_dim, num_classes=1000, stage1_weights=False, dataset=None,
                 # weight_dir = path.join('/'.join(log_dir.split('/')[:-1]), 'stage1')
             else:
                 weight_dir = './logs/%s/stage1' % dataset
-            print('==> Loading classifier weights from %s' % weight_dir)
+            logger('==> Loading classifier weights from %s' % weight_dir)
             clf.fc = init_weights(model=clf.fc,
                                   weights_path=path.join(weight_dir, 'final_model_checkpoint.pth'),
                                   classifier=True)
         else:
-            print('Random initialized classifier weights.')
+            logger('Random initialized classifier weights.')
 
     return clf

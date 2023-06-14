@@ -138,16 +138,16 @@ class BBN_ResNet_Cifar(nn.Module):
 
 
         
-def create_model(use_fc=False, pretrain=False, dropout=None, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
+def create_model(logger, use_fc=False, pretrain=False, dropout=None, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
     
-    print('Loading ResNet 32 Feature Model.')
+    logger('Loading ResNet 32 Feature Model.')
     resnet32 = BBN_ResNet_Cifar(BasicBlock, [5, 5, 5])
 
     pretrained_model="./data/checkpoints/final_model_checkpoint.pth"
     if path.exists(pretrained_model) and pretrain:
-        print('===> Load Initialization for ResNet32')
+        logger('===> Load Initialization for ResNet32')
         resnet32.load_model(pretrain=pretrained_model)
     else:
-        print('===> Train backbone from the scratch')
+        logger('===> Train backbone from the scratch')
 
     return resnet32

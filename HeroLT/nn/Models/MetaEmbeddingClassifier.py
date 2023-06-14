@@ -66,23 +66,23 @@ class MetaEmbedding_Classifier(nn.Module):
 
         return logits, [direct_feature, infused_feature]
     
-def create_model(feat_dim=2048, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
-    print('Loading Meta Embedding Classifier.')
+def create_model(logger, feat_dim=2048, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
+    logger('Loading Meta Embedding Classifier.')
     clf = MetaEmbedding_Classifier(feat_dim, num_classes)
 
     if not test:
         if stage1_weights:
             assert(dataset)
-            print('Loading %s Stage 1 Classifier Weights.' % dataset)
+            logger('Loading %s Stage 1 Classifier Weights.' % dataset)
             if log_dir is not None:
                 weight_dir = path.join('/'.join(log_dir.split('/')[:-1]), 'stage1')
             else:
                 weight_dir = './logs/%s/stage1' % dataset
-            print('==> Loading weights from %s' % weight_dir)
+            logger('==> Loading weights from %s' % weight_dir)
             clf.fc_hallucinator = init_weights(model=clf.fc_hallucinator,
                                                     weights_path=path.join(weight_dir, 'final_model_checkpoint.pth'),
                                                     classifier=True)
         else:
-            print('Random initialized classifier weights.')
+            logger('Random initialized classifier weights.')
 
     return clf

@@ -87,6 +87,6 @@ class DiscCentroidsLossFunc(Function):
 
 
     
-def create_loss(feat_dim=512, num_classes=1000):
-    print('Loading Discriminative Centroids Loss.')
+def create_loss(logger, feat_dim=512, num_classes=1000, *args):
+    logger('Loading Discriminative Centroids Loss.')
     return DiscCentroidsLoss(num_classes, feat_dim)

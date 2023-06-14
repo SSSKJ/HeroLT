@@ -1,11 +1,13 @@
-import torch
-from torch import nn
-
-import copy
-
 from HeroLT.nn.Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder
 from HeroLT.nn.Samplers import recon_upsample
 from HeroLT.utils import adj_mse_loss, normalize_adj, normalize_sym
+
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+import copy
+
 
 class graphSMOTE(nn.Module):
     def __init__(self, config, adj):

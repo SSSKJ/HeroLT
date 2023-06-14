@@ -63,7 +63,7 @@ class BALMS(CVModel):
             # model_args.append(self.test_mode)
             model_args = val['params']
             model_args.update({'test': self.test_mode})
-            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path})
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
 
             self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(**model_args)
             if 'KNNClassifier' in type(self.networks[key]).__name__:
@@ -101,7 +101,8 @@ class BALMS(CVModel):
         ## todo: check freq path
         for key, val in criterion_defs.items():
             def_file = val['def_file']
-            loss_args = list(val['loss_params'].values())
+            loss_args = val['loss_params']
+            loss_args.update({'logger': self.logger})
 
             self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
             self.criterion_weights[key] = val['weight']
