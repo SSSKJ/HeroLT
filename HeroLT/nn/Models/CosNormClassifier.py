@@ -17,8 +17,6 @@ import math
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-import pdb
-
 class CosNorm_Classifier(nn.Module):
     def __init__(self, in_dims, out_dims, scale=16, margin=0.5, init_std=0.001):
         super(CosNorm_Classifier, self).__init__()

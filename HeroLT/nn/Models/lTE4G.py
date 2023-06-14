@@ -1,8 +1,9 @@
+from HeroLT.nn.Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder, MLP
+from HeroLT.utils import adj_mse_loss
+
 import torch
 from torch import nn
-
-from Models import GNN_Encoder, GNN_Classifier, Graph_Decoder, MLP
-from utils import *
+import torch.nn.functional as F
 
 class lTE4G(nn.Module):
     def __init__(self, config, adj):
@@ -21,7 +22,7 @@ class lTE4G(nn.Module):
             self.expert_dict[sep] = GNN_Classifier(layer = config['layer'], nhid = config['nhid'], nclass = num_class, nhead = config['nhead'], dropout = config['dropout'], adj=adj)
         
         if self.config['rec']:
-            self.decoder = Graph_Decoder(nhid=config['nhid'], dropout=config['dropout'])
+            self.decoder = GraphSMOTE_Decoder(nhid=config['nhid'], dropout=config['dropout'])
 
     def forward(self, features, adj=None, labels=None, idx_train=None, classifier=None, embed=None, sep=None, teacher=None, pretrain=False, weight=None, is_og=False, is_expert=False, is_student=False):
         if embed == None:

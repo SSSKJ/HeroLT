@@ -4,12 +4,12 @@ All rights reserved.
 This source code is licensed under the license found in the
 LICENSE file in the root directory of this source tree.
 """
-
+from HeroLT.nn.Modules.ModulatedAttLayer import ModulatedAttLayer
 
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from Modules.ModulatedAttLayer import ModulatedAttLayer
+
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""

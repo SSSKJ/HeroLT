@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-from utils import *
+from HeroLT.utils import init_weights
 from os import path
 
 class DotProduct_Classifier(nn.Module):

@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from Models.BBN_ResNet import res50, bbn_res50
-from Models.BBN_ResNet_cifar import res32_cifar, bbn_res32_cifar
-from Layers import GAP, Identity, FCNorm
+from HeroLT.nn.Models.BBN_ResNet import res50, bbn_res50
+from HeroLT.nn.Models.BBN_ResNet_cifar import res32_cifar, bbn_res32_cifar
+from HeroLT.nn.Layers import GAP, Identity, FCNorm
 
 
 class Network(nn.Module):

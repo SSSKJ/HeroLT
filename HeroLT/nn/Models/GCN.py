@@ -1,9 +1,9 @@
+from HeroLT.nn.Layers import GraphConvolution
+from HeroLT.nn.Modules import Attention
+
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
-from Layers import GraphConvolution
-from Modules import Attention
-
 
 class GCN(nn.Module):
     def __init__(self, nfeat, nhid, nclass, dropout, generate_node, min_node):

@@ -1,6 +1,6 @@
-from Layers import GraphConvolution
-from Modules import Relation, Relationv2
-from TailGNN_Generator import TailGNN_Generator
+from HeroLT.nn.Layers import GraphConvolution
+from HeroLT.nn.Modules import Relation, Relationv2
+from .TailGNN_Generator import Generator
 
 import torch
 from torch import nn
@@ -17,7 +17,7 @@ class TransGCN(nn.Module):
         else:
             self.r = Relationv2(nfeat, nhid, ablation)
 
-        self.g = TailGNN_Generator(nfeat, g_sigma, ablation)
+        self.g = Generator(nfeat, g_sigma, ablation)
         self.gc = GraphConvolution(nfeat, nhid)
 
     def forward(self, x, adj, head):

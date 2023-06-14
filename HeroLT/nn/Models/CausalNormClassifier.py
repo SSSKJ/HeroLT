@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-from utils import *
-from os import path
+
 import math
 
 class Causal_Norm_Classifier(nn.Module):

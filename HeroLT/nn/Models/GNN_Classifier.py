@@ -1,4 +1,4 @@
-from Layers import GraphConvolution
+from HeroLT.nn.Layers import GraphConvolution
 
 from torch import nn
 

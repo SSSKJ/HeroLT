@@ -1,6 +1,7 @@
-import numpy as np
-import torch, math
-from core.evaluate import accuracy
+from HeroLT.utils import accuracy
+
+import torch
+
 
 class BBN_Combiner:
     def __init__(self, cfg, device):

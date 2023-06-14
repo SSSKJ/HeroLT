@@ -12,13 +12,14 @@ Copyright (c) 2019, Zhongqi Miao
 All rights reserved.
 """
 
+from HeroLT.nn.Models.CosNormClassifier import CosNorm_Classifier
+from HeroLT.utils import init_weights
+
 import torch
 import torch.nn as nn
-from Models.CosNormClassifier import CosNorm_Classifier
-from utils import *
+
 from os import path
 
-import pdb
 
 class MetaEmbedding_Classifier(nn.Module):
     

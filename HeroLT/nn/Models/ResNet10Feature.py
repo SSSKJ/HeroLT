@@ -13,8 +13,8 @@ All rights reserved.
 """
 
 
-from Models.ResNetFeature import *
-from utils import *
+from HeroLT.nn.Models.ResNetFeature import *
+from HeroLT.utils import init_weights
 from os import path
 
 def create_model(use_selfatt=False, use_fc=False, dropout=None, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):

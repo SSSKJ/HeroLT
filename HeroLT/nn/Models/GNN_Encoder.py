@@ -1,5 +1,5 @@
-from Modules import GraphAttConv
-from  Layers import GraphConvolution
+from HeroLT.nn.Modules import GraphAttConv
+from HeroLT.nn.Layers import GraphConvolution
 
 from torch import nn
 

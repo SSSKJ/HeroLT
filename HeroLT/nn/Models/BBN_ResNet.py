@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import math
 
 model_urls = {
     "resnet18": "https://s3.amazonaws.com/pytorch/models/resnet18-5c106cde.pth",

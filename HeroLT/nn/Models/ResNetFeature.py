@@ -11,12 +11,12 @@ this source tree.
 Copyright (c) 2019, Zhongqi Miao
 All rights reserved.
 """
-
+from HeroLT.nn.Modules import ModulatedAttLayer
 
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from Modules.ModulatedAttLayer import ModulatedAttLayer
+
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
