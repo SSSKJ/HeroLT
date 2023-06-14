@@ -1,17 +1,25 @@
-from BaseModel import BaseModel
-from utils import *
-from Models import GCN, ImGAGN_Generator
-from tools.loaders import Graph_loader
+from HeroLT.nn.Wrappers import BaseModel
+from HeroLT.nn.Models import GCN
+from HeroLT.nn.Models.ImGAGN_Generator import Generator
+from HeroLT.nn.Dataloaders import GraphDataLoader
+from HeroLT.utils.logger import get_logger
+from HeroLT.utils import performance_measure, normalize, sparse_mx_to_torch_sparse_tensor
 
+import torch
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
+import numpy as np
+import scipy.sparse as sp
+
+import time
+## todo: Load Model and Save Model
 class ImGAGN(BaseModel):
 
     def __init__(
             self,
             dataset: str,
-            device: str,
             base_dir: str = '../../',
             ) -> None:
         
@@ -21,12 +29,13 @@ class ImGAGN(BaseModel):
             base_dir = base_dir)
         
         self.__load_config()
+        self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
     
     def load_data(self):
 
         super().load_data()
 
-        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = Graph_loader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
+        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
 
     def load_pretrained_model(self):
         ## todo
@@ -41,7 +50,7 @@ class ImGAGN(BaseModel):
             generate_node = self.generate_node,
             min_node = self.minority)
         
-        self.model_generator = ImGAGN_Generator(self.minority_all.shape[0])
+        self.model_generator = Generator(self.minority_all.shape[0])
         
     def __init_optimizer_and_scheduler(self):
 
@@ -56,6 +65,7 @@ class ImGAGN(BaseModel):
         self.load_data()
         device = self.config['device']
 
+        t_total = time.time()
         repeatition = self.config['num_seed']
         seed = self.config['rnd'] - 1
         seed_result = {}
@@ -71,7 +81,7 @@ class ImGAGN(BaseModel):
             seed += 1
             torch.manual_seed(seed)
             torch.cuda.manual_seed(seed)
-            print('seed:', seed)
+            self.logger(f'seed: {seed}')
 
             # Model and optimizer
             self.__init_model()
@@ -183,7 +193,7 @@ class ImGAGN(BaseModel):
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test)
                 st += "  [*Best Test Result*][Epoch {}] ACC: {:.1f},  bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(
                     max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
-                print(st)
+                self.logger(st)
 
             seed_result['acc'].append(float(best_test_result[0]))
             seed_result['bacc'].append(float(best_test_result[1]))
@@ -197,14 +207,15 @@ class ImGAGN(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        print(
+        self.logger(
             '[Averaged result] ACC: {:.1f}+{:.1f}, bACC: {:.1f}+{:.1f}, Precision: {:.1f}+{:.1f}, Recall: {:.1f}+{:.1f}, mAP: {:.1f}+{:.1f}'.format(
                 np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision), np.std(precision),
                 np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        print('ACC bACC Precision Recall mAP')
-        print('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
-                                                                                            np.std(precision), np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)), file=text)
-        print(self.config)
+        self.logger('ACC bACC Precision Recall mAP')
+        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
+                                                                                            np.std(precision), np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
+        self.logger(self.config)
+        self.logger("Total time elapsed: {:.4f}s".format(time.time() - t_total))
     
     def __add_edges(adj_real, adj_new):
 
