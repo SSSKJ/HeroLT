@@ -1,5 +1,6 @@
 from .DecouplingLoader import DecouplingLoader
 from .BALMSDataLoader import BALMSDataLoader
+from .GraphDataLoader import GraphDataLoader
 
 from torchvision import transforms
 
