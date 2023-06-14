@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class TailGNN_Generator(nn.Module):
+class Generator(nn.Module):
     def __init__(self, in_features, std, ablation):
-        super(TailGNN_Generator, self).__init__()
+        super(Generator, self).__init__()
 
         self.g = nn.Linear(in_features, in_features, bias=True)
         self.std = std

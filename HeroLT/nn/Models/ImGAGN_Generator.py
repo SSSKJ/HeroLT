@@ -1,9 +1,9 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-class ImGAGN_Generator(nn.Module):
+class Generator(nn.Module):
     def __init__(self,  dim):
-        super(ImGAGN_Generator, self).__init__( )
+        super(Generator, self).__init__( )
 
         self.fc1 = nn.Linear(100, 200)
         self.fc2 = nn.Linear(200, 200)
