@@ -35,7 +35,7 @@ class ImGAGN(BaseModel):
 
         super().load_data()
 
-        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/')
+        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
 
     def load_pretrained_model(self):
         ## todo
