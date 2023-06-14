@@ -4,6 +4,6 @@
 
    ```python
    from framework.nn.Wrappers import TailGNN
-   model = ImGAGN('imagenet_lt', './framework/')
+   model = TailGNN('email', './framework/')
    model.train()
    ```

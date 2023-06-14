@@ -4,6 +4,6 @@
 
    ```python
    from framework.nn.Wrappers import ImGAGN
-   model = ImGAGN('imagenet_lt', './framework/')
+   model = ImGAGN('email', './framework/')
    model.train()
    ```
