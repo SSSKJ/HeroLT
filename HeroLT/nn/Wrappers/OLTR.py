@@ -33,6 +33,8 @@ class OLTR(BaseModel):
         self.test_mode = test_mode
         self.networks = None
 
+        self.scheduler_params = self.training_opt['scheduler_params']
+
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
         self.logger(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
@@ -50,7 +52,7 @@ class OLTR(BaseModel):
             loss_args = val['loss_params']
             loss_args.update({'logger': self.logger})
 
-            self.criterions[key] = source_import(def_file).create_loss(*loss_args).to(self.device)
+            self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).to(self.device)
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
@@ -62,16 +64,14 @@ class OLTR(BaseModel):
                                 'weight_decay': optim_params['weight_decay']}]
                 # Initialize criterion optimizer and scheduler
                 self.criterion_optimizer, \
-                self.criterion_optimizer_scheduler = self.init_optimizers(optim_params)
+                self.criterion_optimizer_scheduler = self.__init_optimizers(optim_params)
             else:
                 self.criterion_optimizer = None
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
         self.logger('Initializing model optimizer.')
-        self.scheduler_params = self.training_opt['scheduler_params']
-        self.model_optimizer, \
-        self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
+        self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
 
     def __init_optimizers(self, optim_params):
 
@@ -195,7 +195,7 @@ class OLTR(BaseModel):
     
     def eval(self, phase='val', openset=False):
 
-        self.logger.log('-----------------------------------Phase: %s-----------------------------------' % (phase))
+        self.logger.log('Phase: %s' % (phase))
 
         torch.cuda.empty_cache()
 
@@ -276,6 +276,7 @@ class OLTR(BaseModel):
                                         dataset=self.dataset_name, 
                                         phase=x, 
                                         batch_size=training_opt['batch_size'],
+                                        logger = self.logger,
                                         sampler_dic=sampler_dic,
                                         num_workers=training_opt['num_workers'])
                     for x in (['train', 'val', 'train_plain'] if relatin_opt['init_centroids'] else ['train', 'val'])}
@@ -320,7 +321,7 @@ class OLTR(BaseModel):
             model_args.append(self.test_mode)
             model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
 
-            self.networks[key] = source_import(def_file).create_model(*model_args)
+            self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(*model_args)
             self.networks[key] = nn.DataParallel(self.networks[key]).to(self.device)
             
             if 'fix' in val and val['fix']:
