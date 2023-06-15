@@ -2,7 +2,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from .datasets import *
-from utils import *
+from ..utils import *
 
 import numpy as np
 

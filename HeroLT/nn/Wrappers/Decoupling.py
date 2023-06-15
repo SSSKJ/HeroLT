@@ -1,8 +1,8 @@
-from HeroLT.utils import source_import
-from HeroLT.nn.Wrappers import CVModel
-from HeroLT.nn.Dataloaders import DecouplingDataLoader
-from HeroLT.nn.Samplers import ClassAwareSampler
-from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority
+from ...utils import source_import
+from . import CVModel
+from ..Dataloaders import DecouplingDataLoader
+from ..Samplers import ClassAwareSampler
+from ...utils import torch2numpy, mic_acc_cal, get_priority
 
 import torch
 import torch.optim as optim
@@ -23,16 +23,17 @@ class Decoupling(CVModel):
         
         super().__init__(
             model_name = 'Decoupling',
-            dataset = dataset,
-            base_dir = base_dir)
+            dataset_name = dataset,
+            base_dir = base_dir,
+            test_mode = test_mode)
         
-        self.__load_config()
+        super().load_config()
         # Initialize model
         self.__init_model()
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
-        self.logger.log('Initializing model optimizer.')
+        self.logger.log.info('Initializing model optimizer.')
         self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
 
     def load_data(
@@ -58,7 +59,7 @@ class Decoupling(CVModel):
 
                 return self.__training_data
 
-            self.logger.log('Loading data for Training')
+            self.logger.log.info('Loading data for Training')
             sampler_defs = training_opt['sampler']
             if sampler_defs and sampler_defs['type'] == 'ClassAwareSampler':
                     sampler_dic = {
@@ -87,8 +88,8 @@ class Decoupling(CVModel):
 
                 return self.__testing_data
 
-            self.logger.log('Loading data for Testing')
-            self.logger.log('Under testing phase, we load training data simply to calculate \
+            self.logger.log.info('Loading data for Testing')
+            self.logger.log.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
             if dataset == 'inatural2018':
@@ -123,7 +124,7 @@ class Decoupling(CVModel):
         self.networks = {}
         self.model_optim_params_list = []
 
-        self.logger.log(f"Using {torch.cuda.device_count()} GPUs.")
+        self.logger.log.info(f"Using {torch.cuda.device_count()} GPUs.")
         
         for key, val in networks_defs.items():
 
@@ -131,13 +132,13 @@ class Decoupling(CVModel):
             def_file = val['def_file']
             model_args = val['params']
             model_args.update({'test': self.test_mode})
-            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger.log})
 
             self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(**model_args)
             self.networks[key] = torch.nn.DataParallel(self.networks[key]).cuda()
 
             if 'fix' in val and val['fix']:
-                self.logger.log('Freezing feature weights except for self attention weights (if exist).')
+                self.logger.log.info('Freezing feature weights except for self attention weights (if exist).')
                 for param_name, param in self.networks[key].named_parameters():
                     # Freeze all parameters except self attention parameters
                     if 'selfatt' not in param_name and 'fc' not in param_name:
@@ -158,13 +159,13 @@ class Decoupling(CVModel):
         for key, val in criterion_defs.items():
             def_file = val['def_file']
             loss_args = ['loss_params'].values()
-            loss_args.update({'logger': self.logger})
+            loss_args.update({'logger': self.logger.log})
 
             self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
-                self.logger.log('Initializing criterion optimizer.')
+                self.logger.log.info('Initializing criterion optimizer.')
                 optim_params = val['optim_params']
                 optim_params = [{'params': self.criterions[key].parameters(),
                                 'lr': optim_params['lr'],
@@ -178,7 +179,7 @@ class Decoupling(CVModel):
     def __init_optimizers(self, optim_params):
         optimizer = optim.SGD(optim_params)
         if self.config['coslr']:
-            self.logger.log("===> Using coslr eta_min={}".format(self.config['endlr']))
+            self.logger.log.info("===> Using coslr eta_min={}".format(self.config['endlr']))
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, self.training_opt['num_epochs'], eta_min=self.config['endlr'])
         else:
@@ -197,7 +198,7 @@ class Decoupling(CVModel):
 
         self.data = self.__training_data
 
-        self.logger.log('Using steps for training.')
+        self.logger.log.info('Using steps for training.')
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num / self.training_opt['batch_size'])
 
@@ -208,8 +209,8 @@ class Decoupling(CVModel):
             self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
 
         # When training the network
-        self.logger.log('-----------------------------------Phase: train-----------------------------------')
-        self.logger.log(f'Do shuffle??? --- {self.do_shuffle}')
+        self.logger.log.info('-----------------------------------Phase: train-----------------------------------')
+        self.logger.log.info(f'Do shuffle??? --- {self.do_shuffle}')
         
         # Initialize best model
         best_model_weights = {}
@@ -242,18 +243,18 @@ class Decoupling(CVModel):
                 if step == self.epoch_steps:
                     break
                 if self.do_shuffle:
-                    inputs, labels = self.__shuffle_batch(inputs, labels)
+                    inputs, labels = super().shuffle_batch(inputs, labels)
                 inputs, labels = inputs.cuda(), labels.cuda()
 
                 # If on training phase, enable gradients
                 with torch.set_grad_enabled(True):
                         
                     # If training, forward with loss, and no top 5 accuracy calculation
-                    self.__batch_forward(inputs, labels, 
+                    super().batch_forward(inputs, labels, 
                                        centroids=self.memory['centroids'],
                                        phase='train')
-                    self.__batch_loss(labels)
-                    self.__batch_backward()
+                    super().batch_loss(labels)
+                    super().batch_backward()
 
                     # Tracking predictions
                     _, preds = torch.max(self.logits, 1)
@@ -270,11 +271,11 @@ class Decoupling(CVModel):
                         minibatch_loss_total = self.loss.item()
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
-                        self.logger.log('Step: %5d' % (step))
-                        self.logger.log('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
-                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
-                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
+                        self.logger.log.info('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.log.info('Step: %5d' % (step))
+                        self.logger.log.info('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
+                        self.logger.log.info('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.log.info('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
 
                         loss_info = {
                                 'Epoch': epoch,
@@ -304,8 +305,8 @@ class Decoupling(CVModel):
 
             # After every epoch, validation
             rsls = {'epoch': epoch}
-            rsls_train = self.eval_with_preds(total_preds, total_labels)
-            rsls_eval = self.eval(phase='val')
+            rsls_train = super().eval_with_preds(total_preds, total_labels)
+            rsls_eval = super().eval(phase='val')
             rsls.update(rsls_train)
             rsls.update(rsls_eval)
 
@@ -328,19 +329,19 @@ class Decoupling(CVModel):
                 best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
                 best_model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
             
-            self.logger.log('===> Saving checkpoint')
-            self.__save_latest(epoch)
+            self.logger.log.info('===> Saving checkpoint')
+            super().save_latest(epoch)
 
-        self.logger.log('Training Complete.')
+        self.logger.log.info('Training Complete.')
 
-        self.logger.log('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
+        self.logger.log.info('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
         # Save the best model and best centroids if calculated
-        self.__save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
+        super().save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
 
         # Test on the test set
-        self.__reset_model(best_model_weights)
-        self.eval('test' if 'test' in self.data else 'val')
-        self.logger.log('Done')
+        super().reset_model(best_model_weights)
+        super().eval('test' if 'test' in self.data else 'val')
+        self.logger.log.info('Done')
     
     def load_pretrained_model(self):
 
@@ -350,8 +351,8 @@ class Decoupling(CVModel):
         # Load pre-trained model parameters
         model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
-        self.logger.log('Validation on the best model.')
-        self.logger.log('Loading model from %s' % (model_dir))
+        self.logger.log.info('Validation on the best model.')
+        self.logger.log.info('Loading model from %s' % (model_dir))
         
         checkpoint = torch.load(model_dir)          
         model_state = checkpoint['state_dict_best']

@@ -38,5 +38,5 @@ class CosNorm_Classifier(nn.Module):
         return torch.mm(self.scale * ex, ew.t())
 
 def create_model(logger, in_dims=512, out_dims=1000):
-    logger('Loading Cosine Norm Classifier.')
+    logger.info('Loading Cosine Norm Classifier.')
     return CosNorm_Classifier(in_dims=in_dims, out_dims=out_dims)

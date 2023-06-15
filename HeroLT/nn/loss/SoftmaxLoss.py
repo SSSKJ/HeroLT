@@ -16,6 +16,6 @@ All rights reserved.
 import torch.nn as nn
 
 def create_loss(logger, *args):
-    logger('Loading Softmax Loss.')
+    logger.info('Loading Softmax Loss.')
     return nn.CrossEntropyLoss()
 

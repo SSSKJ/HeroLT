@@ -1,8 +1,8 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Dataloaders import GraphDataLoader
-from HeroLT.utils.logger import get_logger
-from HeroLT.nn.Models import lTE4G
-from HeroLT.utils import seed_everything, performance_measure, scheduler
+from . import BaseModel
+from ..Dataloaders import GraphDataLoader
+from ...utils.logger import get_logger
+from ..Models import lTE4G
+from ...utils import seed_everything, performance_measure, scheduler
 
 import torch
 import torch.nn.functional as F
@@ -22,11 +22,11 @@ class LTE4G(BaseModel):
         
         super().__init__(
             model_name = 'LTE4G',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
 
-        self.__load_config()
+        super().load_config()
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
         self.loaded = False
 
@@ -35,7 +35,7 @@ class LTE4G(BaseModel):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
 
     def __init_model(self):
         
@@ -46,7 +46,7 @@ class LTE4G(BaseModel):
         self.loaded = True
         ## todo: load pretrained model
         ####### Load Pre-trained Original Imbalance graph #######
-        # self.logger('Load Pre-trained Encoder')       
+        # self.logger.info('Load Pre-trained Encoder')       
         # rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
         # encoder_info = f'cls_{self.config['cls_og']}_cw_{self.config['class_weight']}_gamma_{self.config['gamma']}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
         # if self.config['im_ratio != 1: # manual
@@ -78,16 +78,16 @@ class LTE4G(BaseModel):
         self.load_data()
         
         for seed in range(self.config['rnd'], self.config['rnd'] + self.config['num_seed']):
-            self.logger(f'============== seed:{seed} ==============')
+            self.logger.info(f'============== seed:{seed} ==============')
             seed_everything(seed)
-            self.logger(f'seed: {seed}')
-            self.logger(f'Samples per label: {list(self.class_num_mat[:,0])}')
+            self.logger.info(f'seed: {seed}')
+            self.logger.info(f'Samples per label: {list(self.class_num_mat[:,0])}')
 
-            self.logger('-----Number of training samples in each Expert-----')
-            self.logger('HH: %s' % len(self.idx_train_set['HH']))
-            self.logger('HT: %s' % len(self.idx_train_set['HT']))
-            self.logger('TH: %s' %  len(self.idx_train_set['TH']))
-            self.logger('TT: %s' % len(self.idx_train_set['TT']))
+            self.logger.info('-----Number of training samples in each Expert-----')
+            self.logger.info('HH: %s' % len(self.idx_train_set['HH']))
+            self.logger.info('HT: %s' % len(self.idx_train_set['HT']))
+            self.logger.info('TH: %s' %  len(self.idx_train_set['TH']))
+            self.logger.info('TT: %s' % len(self.idx_train_set['TT']))
 
             self.__init_model()
 
@@ -108,7 +108,7 @@ class LTE4G(BaseModel):
             # ======================================= Encoder Training ======================================= #
             if not self.loaded:
                 ####### Pre-train Original Imbalance graph #######
-                self.logger('Start Pre-training Encoder')       
+                self.logger.info('Start Pre-training Encoder')       
                 best_encoder = None
                 self.__init_optimizer_and_scheduler()
 
@@ -126,7 +126,7 @@ class LTE4G(BaseModel):
                         self.optimizer_ep.step()
 
                         if epoch % 100 == 0:
-                            self.logger("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
+                            self.logger.info("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
 
                 val_bacc_og = []
                 test_results = []
@@ -172,12 +172,12 @@ class LTE4G(BaseModel):
                     
                     if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                         if epoch - max_idx > self.config['ep_early']:
-                            self.logger("Early stop")
+                            self.logger.info("Early stop")
                         break
 
                 # todo: Save pre-trained encoder
                 # if self.config['save_encoder']:
-                #     self.logger('Saved pre-trained Encoder')
+                #     self.logger.info('Saved pre-trained Encoder')
                 #     rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
                 #     encoder_info = f'cls_{self.config['cls_og}_cw_{self.config['class_weight}_gamma_{self.config['gamma}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
                 #     if self.config['im_ratio'] != 1: # manual
@@ -314,11 +314,11 @@ class LTE4G(BaseModel):
                         max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
                     
                     if epoch % 100 == 0:
-                        self.logger(st)
+                        self.logger.info(st)
 
                     if (epoch - max_idx >= 300) or (epoch + 1 == self.config['ep']):
                         if epoch - max_idx >= 300:
-                            self.logger('Early Stop!')
+                            self.logger.info('Early Stop!')
                         break
                     
 
@@ -378,7 +378,7 @@ class LTE4G(BaseModel):
                         max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
                     
                     if epoch % 100 == 0:
-                        self.logger(st)
+                        self.logger.info(st)
 
                     if epoch + 1 == self.config['curriculum_ep']:
                         break
@@ -405,8 +405,8 @@ class LTE4G(BaseModel):
 
             acc, bacc, precision, recall, mAP = performance_measure(final_pred, self.labels[self.idx_test], pre='test')
 
-            self.logger('=======================================================')
-            self.logger('[LTE4G] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}'.format(acc, bacc, precision, recall, mAP))
+            self.logger.info('=======================================================')
+            self.logger.info('[LTE4G] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}'.format(acc, bacc, precision, recall, mAP))
 
             seed_result['acc'].append(float(acc))
             seed_result['bacc'].append(float(bacc))
@@ -420,8 +420,8 @@ class LTE4G(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        self.logger('ACC bACC Precision Recall mAP')
-        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
+        self.logger.info('ACC bACC Precision Recall mAP')
+        self.logger.info('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
                                                                                              np.mean(precision), np.std(precision), np.mean(recall),
                                                                                              np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger(self.config)
+        self.logger.info(self.config)

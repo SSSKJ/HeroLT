@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 from torch_geometric.data import Data, InMemoryDataset
 from torch_geometric.utils.loop import add_self_loops, remove_self_loops
 from torch_geometric.utils import to_undirected, is_undirected, from_scipy_sparse_matrix
+import torchvision
 
 
 import os
@@ -11,9 +12,9 @@ from PIL import Image
 from scipy.io import loadmat
 from sklearn import preprocessing
 
-from utils import *
-from data import *
-from .ClassAwareSampler import *
+from ..utils import *
+from ..data import *
+from ..nn.Samplers.ClassAwareSampler import ClassAwareSampler
 
 class MiSLAS_LT_Dataset(Dataset):
     num_classes = 8142

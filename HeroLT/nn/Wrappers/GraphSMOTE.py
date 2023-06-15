@@ -21,10 +21,10 @@ class GraphSMOTE(BaseModel):
         
         super().__init__(
             model_name = 'GraphSMOTE',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
 
-        self.__load_config()
+        super().load_config()
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
 
@@ -32,7 +32,7 @@ class GraphSMOTE(BaseModel):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
 
     def __init_model(self):
         
@@ -59,9 +59,9 @@ class GraphSMOTE(BaseModel):
         self.load_data()
         
         for seed in range(self.config['rnd'], self.config['rnd'] + self.config['num_seed']):
-            self.logger(f'============== seed:{seed} ==============')
+            self.logger.info(f'============== seed:{seed} ==============')
             seed_everything(seed)
-            self.logger(f'seed: {seed}')
+            self.logger.info(f'seed: {seed}')
 
             self.__init_model()
             self.__init_optimizer_and_scheduler()
@@ -80,12 +80,12 @@ class GraphSMOTE(BaseModel):
                 self.optimizer_ep.step()
 
                 if epoch % 100 == 0:
-                    self.logger("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
+                    self.logger.info("[Pretrain][Epoch {}] Recon Loss: {}".format(epoch, loss.item()))
 
                 pretrain_losses.append(loss.item())
                 min_idx = pretrain_losses.index(min(pretrain_losses))
                 if epoch - min_idx > 500:
-                    self.logger("Pretrain converged")
+                    self.logger.info("Pretrain converged")
                     break
            
 
@@ -139,11 +139,11 @@ class GraphSMOTE(BaseModel):
                     max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
                    
                 if epoch % 100 == 0:
-                    self.logger(st)
+                    self.logger.info(st)
 
                 if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                     if epoch - max_idx > self.config['ep_early']:
-                        self.logger("Early stop")
+                        self.logger.info("Early stop")
                     embed = best_model.encoder(self.features)
                     output = best_model.classifier(embed)
                     best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4] = performance_measure(output[self.idx_test], self.labels[self.idx_test], pre='test')
@@ -151,10 +151,10 @@ class GraphSMOTE(BaseModel):
                     #                                                                             self.labels[
                     #                                                                                 self.idx_test],
                     #                                                                             pre='test')
-                    self.logger("[Best Test Result] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(best_test_result[0], best_test_result[1], best_test_result[2],
+                    self.logger.info("[Best Test Result] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(best_test_result[0], best_test_result[1], best_test_result[2],
                                                                                                                                 best_test_result[3], best_test_result[4]))
-                    self.logger(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
-                    self.logger(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    self.logger.info(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    self.logger.info(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
                     break
 
             seed_result['acc'].append(float(best_test_result[0]))
@@ -162,9 +162,9 @@ class GraphSMOTE(BaseModel):
             seed_result['precision'].append(float(best_test_result[2]))
             seed_result['recall'].append(float(best_test_result[3]))
             seed_result['mAP'].append(float(best_test_result[4]))
-            # self.logger("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(
+            # self.logger.info("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(
             #     acc_list, macro_F_list, gmean_list, bacc_list), file=text)
-            # self.logger("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(acc_list, macro_F_list, gmean_list, bacc_list))
+            # self.logger.info("[Best Test Result per class] ACC: {}, Macro-F1: {}, G-Means: {}, bACC: {}".format(acc_list, macro_F_list, gmean_list, bacc_list))
 
         acc = seed_result['acc']
         bacc = seed_result['bacc']
@@ -172,15 +172,15 @@ class GraphSMOTE(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        self.logger(
+        self.logger.info(
             '[Averaged result] ACC: {:.1f}+{:.1f}, bACC: {:.1f}+{:.1f}, Precision: {:.1f}+{:.1f}, Recall: {:.1f}+{:.1f}, mAP: {:.1f}+{:.1f}'.format(
                 np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision), np.std(precision),
                 np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger('ACC bACC Precision Recall mAP')
-        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
+        self.logger.info('ACC bACC Precision Recall mAP')
+        self.logger.info('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc),
                                                                                              np.mean(precision), np.std(precision), np.mean(recall),
                                                                                              np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger(self.config)
+        self.logger.info(self.config)
         
 
 

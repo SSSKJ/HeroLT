@@ -1,6 +1,6 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.utils import mic_acc_cal, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
-from HeroLT.utils.logger import Logger
+from . import BaseModel
+from ...utils import mic_acc_cal, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
+from ...utils.logger import Logger
 
 import torch
 import torch.nn.functional as F
@@ -29,7 +29,7 @@ class CVModel(BaseModel):
         self.networks = None
 
         self.logger = Logger(self.base_dir, self.model_name, self.dataset_name)
-        self.logger.log(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
+        self.logger.log.info(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
         self.training_opt = self.config['training_opt']
         self.memory = self.config['memory']
@@ -39,8 +39,8 @@ class CVModel(BaseModel):
         self.scheduler_params = self.training_opt['scheduler_params']
 
     
-    def __load_config(self):
-        super().__load_config()
+    def load_config(self):
+        super().load_config()
 
     def load_data(self):
         super().load_data()
@@ -48,7 +48,7 @@ class CVModel(BaseModel):
     def load_pretrained_model(self):
         super().load_pretrained_model()
 
-    def __save_latest(self, epoch):
+    def save_latest(self, epoch):
         model_weights = {}
         model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
         model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
@@ -61,7 +61,7 @@ class CVModel(BaseModel):
         model_dir = f'{self.output_path}/latest_model_checkpoint.pth'
         torch.save(model_states, model_dir)
         
-    def __save_model(self, epoch, best_epoch, best_model_weights, best_acc, centroids=None):
+    def save_model(self, epoch, best_epoch, best_model_weights, best_acc, centroids=None):
         
         model_states = {'epoch': epoch,
                 'best_epoch': best_epoch,
@@ -76,19 +76,19 @@ class CVModel(BaseModel):
     def output_logits(self, openset=False):
         filename = os.path.join(self.output_path, 
                                 'logits_%s'%('open' if openset else 'close'))
-        self.logger.log("Saving total logits to: %s.npz" % filename)
+        self.logger.log.info("Saving total logits to: %s.npz" % filename)
         np.savez(filename, 
                  logits=self.total_logits.detach().cpu().numpy(), 
                  labels=self.total_labels.detach().cpu().numpy(),
                  paths=self.total_paths)
 
-    def __reset_model(self, model_state):
+    def reset_model(self, model_state):
         for key, model in self.networks.items():
             weights = model_state[key]
             weights = {k: weights[k] for k in weights if k in model.state_dict()}
             model.load_state_dict(weights)
 
-    def __eval_with_preds(self, preds, labels):
+    def eval_with_preds(self, preds, labels):
         # Count the number of examples
         n_total = sum([len(p) for p in preds])
 
@@ -133,16 +133,16 @@ class CVModel(BaseModel):
             rsl['train_low'] += len(mixup_preds) / 2 / n_total * n_top1_low
 
         # Top-1 accuracy and additional string
-        self.logger.log('Training acc Top1: %.3f ' % (rsl['train_all']))
-        self.logger.log('Many_top1: %.3f' % (rsl['train_many']))
-        self.logger.log('Median_top1: %.3f' % (rsl['train_median']))
-        self.logger.log('Low_top1: %.3f' % (rsl['train_low']))
+        self.logger.log.info('Training acc Top1: %.3f ' % (rsl['train_all']))
+        self.logger.log.info('Many_top1: %.3f' % (rsl['train_many']))
+        self.logger.log.info('Median_top1: %.3f' % (rsl['train_median']))
+        self.logger.log.info('Low_top1: %.3f' % (rsl['train_low']))
 
         return rsl
 
     def eval(self, phase='val', openset=False, save_feat=False):
 
-        self.logger.log('-----------------------------------Phase: %s-----------------------------------' % (phase))
+        self.logger.log.info('-----------------------------------Phase: %s-----------------------------------' % (phase))
  
         torch.cuda.empty_cache()
 
@@ -188,7 +188,7 @@ class CVModel(BaseModel):
                 name = 'val{}_all.pkl'.format(typ)
 
             fname = f'{self.output_path}/{name}'
-            self.logger.log('===> Saving feats to ' + fname)
+            self.logger.log.info('===> Saving feats to ' + fname)
             with open(fname, 'wb') as f:
                 pickle.dump({
                              'feats': np.concatenate(feats_all),
@@ -218,7 +218,7 @@ class CVModel(BaseModel):
                phase + '_low': self.low_acc_top1,
                phase + '_fscore': self.eval_f_measure}
         
-        self.logger.log('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
+        self.logger.log.info('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
             % (phase, self.eval_acc_mic_top1, self.eval_f_measure, self.many_acc_top1, self.median_acc_top1, self.low_acc_top1),)
         if phase != 'val':
             acc_str = "{:.1f} \t {:.1f} \t {:.1f} \t {:.1f}".format(
@@ -226,19 +226,19 @@ class CVModel(BaseModel):
                 self.median_acc_top1 * 100,
                 self.low_acc_top1 * 100,
                 self.eval_acc_mic_top1 * 100)
-            self.logger.log(acc_str)
+            self.logger.log.info(acc_str)
         
         if phase == 'test':
             with open(f'{self.output_path}/cls_accs.pkl', 'wb') as f:
                 pickle.dump(self.cls_accs, f)
         return rsl
             
-    def __centroids_cal(self, data, save_all=False):
+    def centroids_cal(self, data, save_all=False):
 
         centroids = torch.zeros(self.training_opt['num_classes'],
                                    self.training_opt['feature_dim']).cuda()
 
-        self.logger.log('Calculating centroids.')
+        self.logger.log.info('Calculating centroids.')
 
         torch.cuda.empty_cache()
         for model in self.networks.values():
@@ -275,7 +275,7 @@ class CVModel(BaseModel):
 
         return centroids
     
-    def __batch_forward(self, inputs, labels=None, centroids=False, feature_ext=False, phase='train'):
+    def batch_forward(self, inputs, labels=None, centroids=False, feature_ext=False, phase='train'):
         '''
         This is a general single batch running function. 
         '''
@@ -302,7 +302,7 @@ class CVModel(BaseModel):
             # Calculate logits with classifier
             self.logits, self.direct_memory_feature = self.networks['classifier'](self.features, centroids_)
 
-    def __batch_backward(self):
+    def batch_backward(self):
         # Zero out optimizer gradients
         self.model_optimizer.zero_grad()
         if self.criterion_optimizer:
@@ -314,7 +314,7 @@ class CVModel(BaseModel):
         if self.criterion_optimizer:
             self.criterion_optimizer.step()
 
-    def __batch_loss(self, labels):
+    def batch_loss(self, labels):
         self.loss = 0
 
         # First, apply performance loss
@@ -330,7 +330,7 @@ class CVModel(BaseModel):
             # Add feature loss to total loss
             self.loss += self.loss_feat
     
-    def __shuffle_batch(self, x, y):
+    def shuffle_batch(self, x, y):
         index = torch.randperm(x.size(0))
         x = x[index]
         y = y[index]

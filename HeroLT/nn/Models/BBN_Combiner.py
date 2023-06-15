@@ -1,4 +1,4 @@
-from HeroLT.utils import accuracy
+from ...utils import accuracy
 
 import torch
 

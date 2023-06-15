@@ -1,12 +1,12 @@
-from HeroLT.nn.Modules import GraphAttConv
-from HeroLT.nn.Layers import GraphConvolution
+from ..Modules import GraphAttConv
+from ..Layers import GraphConvolution
 
 from torch import nn
 
 
-class GNN_Encoder(nn.Module):
+class Encoder(nn.Module):
     def __init__(self, layer, nfeat, nhid, dropout, nhead=1, adj=None):
-        super(GNN_Encoder, self).__init__()
+        super(Encoder, self).__init__()
         if layer == 'gcn':
             self.conv = GraphConvolution(nfeat, nhid)
             self.activation = nn.ReLU()

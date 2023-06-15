@@ -1,7 +1,7 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Dataloaders import OLTRDataLoader
-from HeroLT.utils import source_import, class_count, mic_acc_cal, F_measure, shot_acc
-from HeroLT.utils.logger import get_logger
+from . import BaseModel
+from ..Dataloaders import OLTRDataLoader
+from ...utils import source_import, class_count, mic_acc_cal, F_measure, shot_acc
+from ...utils.logger import get_logger
 
 import torch
 from torch import nn
@@ -26,7 +26,7 @@ class OLTR(BaseModel):
         
         super().__init__(
             model_name = 'OLTR',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
         self.__load_config()
@@ -161,11 +161,11 @@ class OLTR(BaseModel):
                         _, preds = torch.max(self.logits, 1)
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
-                        self.logger.log('Step: %5d' % (step))
-                        self.logger.log('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
-                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
-                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
+                        self.logger.info('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.info('Step: %5d' % (step))
+                        self.logger.info('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
+                        self.logger.info('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.info('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
 
 
             # Set model modes and set scheduler
@@ -195,7 +195,7 @@ class OLTR(BaseModel):
     
     def eval(self, phase='val', openset=False):
 
-        self.logger.log('Phase: %s' % (phase))
+        self.logger.info('Phase: %s' % (phase))
 
         torch.cuda.empty_cache()
 
@@ -235,7 +235,7 @@ class OLTR(BaseModel):
                                      self.total_labels[self.total_labels != -1], 
                                      self.data['train'])
         # Top-1 accuracy and additional string
-        self.logger.log('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
+        self.logger.info('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
             % (phase, self.eval_acc_mic_top1, self.eval_f_measure, self.many_acc_top1, self.median_acc_top1, self.low_acc_top1),)
 
     def load_data(
@@ -452,7 +452,7 @@ class OLTR(BaseModel):
 
         filename = os.path.join(self.output_path, 
                                 'logits_%s'%('open' if openset else 'close'))
-        self.logger.log("Saving total logits to: %s.npz" % filename)
+        self.logger.info("Saving total logits to: %s.npz" % filename)
         np.savez(filename, 
                  logits=self.total_logits.detach().cpu().numpy(), 
                  labels=self.total_labels.detach().cpu().numpy(),

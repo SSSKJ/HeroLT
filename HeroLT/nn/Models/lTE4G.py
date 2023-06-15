@@ -1,5 +1,5 @@
-from HeroLT.nn.Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder, MLP
-from HeroLT.utils import adj_mse_loss
+from ..Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder, MLP
+from ...utils import adj_mse_loss
 
 import torch
 from torch import nn

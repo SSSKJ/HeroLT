@@ -1,9 +1,9 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Dataloaders import TDEDataLoader
-from HeroLT.nn.Samplers import ClassAwareSampler
-from HeroLT.nn.Schedulers import WarmupMultiStepLR
-from HeroLT.utils.logger import Logger
-from HeroLT.utils import source_import, torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, F_measure, print_grad_norm
+from . import BaseModel
+from ..Dataloaders import TDEDataLoader
+from ..Samplers import ClassAwareSampler
+from ..Schedulers import WarmupMultiStepLR
+from ...utils.logger import Logger
+from ...utils import source_import, torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, F_measure, print_grad_norm
 
 import torch
 from torch import nn
@@ -30,16 +30,16 @@ class TDE(BaseModel):
         
         super().__init__(
             model_name = 'TDE',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
-        self.__load_config()
+        super().load_config()
         self.test_mode = test_mode
 
         self.networks = None
 
         self.logger = Logger(self.base_dir, self.model_name, self.dataset_name)
-        self.logger.log(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
+        self.logger.log.info(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
         self.training_opt = self.config['training_opt']
 
@@ -56,7 +56,7 @@ class TDE(BaseModel):
         # apply incremental pca
         self.apply_pca = ('apply_ipca' in self.config) and self.config['apply_ipca']
         if self.apply_pca:
-            self.logger.log('==========> Apply Incremental PCA <=======')
+            self.logger.log.info('==========> Apply Incremental PCA <=======')
             self.pca = IncrementalPCA(n_components=self.config['num_components'], batch_size=self.training_opt['batch_size'])
 
 
@@ -67,32 +67,32 @@ class TDE(BaseModel):
         self.model_optim_params_dict = {}
         self.model_optim_named_params = {}
 
-        self.logger.log("Using", torch.cuda.device_count(), "GPUs.")
+        self.logger.log.info("Using", torch.cuda.device_count(), "GPUs.")
         
         for key, val in networks_defs.items():
             # Networks
             def_file = val['def_file']
             model_args = val['params']
             model_args.update({'test': self.test_mode})
-            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger.log})
 
             self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(**model_args)
             self.networks[key] = nn.DataParallel(self.networks[key]).cuda()
 
             if 'fix' in val and val['fix']:
-                self.logger.log('Freezing weights of module {}'.format(key))
+                self.logger.log.info('Freezing weights of module {}'.format(key))
                 for param_name, param in self.networks[key].named_parameters():
                     # Freeze all parameters except final fc layer
                     if 'fc' not in param_name:
                         param.requires_grad = False
-                self.logger.log('=====> Freezing: {} | False'.format(key))
+                self.logger.log.info('=====> Freezing: {} | False'.format(key))
             
             if 'fix_set' in val:
                 for fix_layer in val['fix_set']:
                     for param_name, param in self.networks[key].named_parameters():
                         if fix_layer == param_name:
                             param.requires_grad = False
-                            self.logger.log('=====> Freezing: {} | {}'.format(param_name, param.requires_grad))
+                            self.logger.log.info('=====> Freezing: {} | {}'.format(param_name, param.requires_grad))
                             continue
 
 
@@ -128,7 +128,7 @@ class TDE(BaseModel):
 
                 return self.__training_data
 
-            self.logger.log('Loading data for Training')
+            self.logger.log.info('Loading data for Training')
             sampler_defs = training_opt['sampler']
             if sampler_defs and sampler_defs['type'] == 'ClassAwareSampler':
                     sampler_dic = {
@@ -159,8 +159,8 @@ class TDE(BaseModel):
 
                 return self.__testing_data
 
-            self.logger.log('Loading data for Testing')
-            self.logger.log('Under testing phase, we load training data simply to calculate \
+            self.logger.log.info('Loading data for Testing')
+            self.logger.log.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
             if dataset == 'inatural2018':
@@ -200,20 +200,20 @@ class TDE(BaseModel):
         for key, val in networks_defs.items():
             # optimizer
             if 'optimizer' in self.training_opt and self.training_opt['optimizer'] == 'adam':
-                self.logger.log('=====> Using Adam optimizer')
+                self.logger.log.info('=====> Using Adam optimizer')
                 optimizer = optim.Adam([optim_params_dict[key],])
             else:
-                self.logger.log('=====> Using SGD optimizer')
+                self.logger.log.info('=====> Using SGD optimizer')
                 optimizer = optim.SGD([optim_params_dict[key],])
             self.model_optimizer_dict[key] = optimizer
             # scheduler
             scheduler_params = val['scheduler_params']
             if scheduler_params['coslr']:
-                self.logger.log("===> Module {} : Using coslr eta_min={}".format(key, scheduler_params['endlr']))
+                self.logger.log.info("===> Module {} : Using coslr eta_min={}".format(key, scheduler_params['endlr']))
                 self.model_scheduler_dict[key] = torch.optim.lr_scheduler.CosineAnnealingLR(
                                     optimizer, self.training_opt['num_epochs'], eta_min=scheduler_params['endlr'])
             elif scheduler_params['warmup']:
-                self.logger.log("===> Module {} : Using warmup".format(key))
+                self.logger.log.info("===> Module {} : Using warmup".format(key))
                 self.model_scheduler_dict[key] = WarmupMultiStepLR(optimizer, scheduler_params['lr_step'], 
                                                     gamma=scheduler_params['lr_factor'], warmup_epochs=scheduler_params['warm_epoch'])
             else:
@@ -231,13 +231,13 @@ class TDE(BaseModel):
         for key, val in criterion_defs.items():
             def_file = val['def_file']
             loss_args = val['loss_params']
-            loss_args.update({'logger': self.logger})
+            loss_args.update({'logger': self.logger.log})
 
             self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
-                self.logger.log('Initializing criterion optimizer.')
+                self.logger.log.info('Initializing criterion optimizer.')
                 optim_params = val['optim_params']
                 optim_params = [{'params': self.criterions[key].parameters(),
                                 'lr': optim_params['lr'],
@@ -259,21 +259,21 @@ class TDE(BaseModel):
         self.data = self.__training_data
 
         # Initialize model optimizer and scheduler
-        self.logger.log('Initializing model optimizer.')
+        self.logger.log.info('Initializing model optimizer.')
         self.__init_optimizer_and_scheduler(self.model_optim_params_dict)
         self.__init_criterions()
 
         # If using steps for training, we need to calculate training steps 
         # for each epoch based on actual number of training data instead of 
         # oversampled data number 
-        self.logger.log('Using steps for training.')
+        self.logger.log.info('Using steps for training.')
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num  / self.training_opt['batch_size'])
 
         # When training the network
-        self.logger.log('-----------------------------------Phase: train-----------------------------------')
+        self.logger.log.info('-----------------------------------Phase: train-----------------------------------')
 
-        self.logger.log(['Force shuffle in training??? --- ', self.do_shuffle])
+        self.logger.log.info(['Force shuffle in training??? --- ', self.do_shuffle])
 
         # Initialize best model
         best_model_weights = {}
@@ -289,7 +289,7 @@ class TDE(BaseModel):
             for key, model in self.networks.items():
                 # only train the module with lr > 0
                 if self.config['networks'][key]['optim_params']['lr'] == 0.0:
-                    self.logger.log(['=====> module {} is set to eval due to 0.0 learning rate.'.format(key)])
+                    self.logger.log.info(['=====> module {} is set to eval due to 0.0 learning rate.'.format(key)])
                     model.eval()
                 else:
                     model.train()
@@ -308,7 +308,7 @@ class TDE(BaseModel):
             total_labels = []
 
             # indicate current path
-            self.logger.log(self.training_opt['log_dir'])
+            self.logger.log.info(self.training_opt['log_dir'])
             # print learning rate
             current_lr = self.__show_current_lr()
             current_lr = min(current_lr * 50, 1.0)
@@ -347,11 +347,11 @@ class TDE(BaseModel):
                         minibatch_loss_total = self.loss.item()
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
-                        self.logger.log('Step: %5d' % (step))
-                        self.logger.log('Minibatch_loss_route: %.3f' % (minibatch_loss_route) if minibatch_loss_route else '')
-                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
-                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
+                        self.logger.log.info('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.log.info('Step: %5d' % (step))
+                        self.logger.log.info('Minibatch_loss_route: %.3f' % (minibatch_loss_route) if minibatch_loss_route else '')
+                        self.logger.log.info('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.log.info('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
                         
                         loss_info = {
                             'Epoch': epoch,
@@ -406,19 +406,19 @@ class TDE(BaseModel):
                 best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
                 best_model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
             
-            self.logger.log('===> Saving checkpoint')
+            self.logger.log.info('===> Saving checkpoint')
             self.__save_latest(epoch)
 
-        self.logger.log('Training Complete.')
+        self.logger.log.info('Training Complete.')
 
-        self.logger.log('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
+        self.logger.log.info('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
         # Save the best model
         self.__save_model(epoch, best_epoch, best_model_weights, best_acc)
 
         # Test on the test set
         self._reset_model(best_model_weights)
         self.eval('test' if 'test' in self.data else 'val')
-        self.logger.log('Done')
+        self.logger.log.info('Done')
 
     def __show_current_lr(self):
         max_lr = 0.0
@@ -427,7 +427,7 @@ class TDE(BaseModel):
             if max(lr_set) > max_lr:
                 max_lr = max(lr_set)
             lr_set = ','.join([str(i) for i in lr_set])
-            self.logger.log('=====> Current Learning Rate of model {} : {}'.format(key, str(lr_set)))
+            self.logger.log.info('=====> Current Learning Rate of model {} : {}'.format(key, str(lr_set)))
         return max_lr
     
     def __batch_forward(self, inputs, labels=None, feature_ext=False, phase='train'):
@@ -540,16 +540,16 @@ class TDE(BaseModel):
             rsl['train_low'] += len(mixup_preds) / 2 / n_total * n_top1_low
 
         # Top-1 accuracy and additional string
-        self.logger.log('Training acc Top1: %.3f ' % (rsl['train_all']))
-        self.logger.log('Many_top1: %.3f' % (rsl['train_many']))
-        self.logger.log('Median_top1: %.3f' % (rsl['train_median']))
-        self.logger.log('Low_top1: %.3f' % (rsl['train_low']))
+        self.logger.log.info('Training acc Top1: %.3f ' % (rsl['train_all']))
+        self.logger.log.info('Many_top1: %.3f' % (rsl['train_many']))
+        self.logger.log.info('Median_top1: %.3f' % (rsl['train_median']))
+        self.logger.log.info('Low_top1: %.3f' % (rsl['train_low']))
 
         return rsl
 
     def eval(self, phase='val', save_feat=False):
 
-        self.logger.log('Phase: %s' % (phase))
+        self.logger.log.info('Phase: %s' % (phase))
  
         torch.cuda.empty_cache()
 
@@ -611,7 +611,7 @@ class TDE(BaseModel):
                phase + '_fscore': self.eval_f_measure}
                                  
         # Top-1 accuracy and additional string
-        self.logger.log('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
+        self.logger.log.info('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
             % (phase, self.eval_acc_mic_top1, self.eval_f_measure, self.many_acc_top1, self.median_acc_top1, self.low_acc_top1),)
 
         if phase != 'val':
@@ -620,7 +620,7 @@ class TDE(BaseModel):
                 self.median_acc_top1 * 100,
                 self.low_acc_top1 * 100,
                 self.eval_acc_mic_top1 * 100)]
-            self.logger.log(*acc_str)
+            self.logger.log.info(*acc_str)
         
         if phase == 'test':
             with open(f'{self.output_path}/cls_accs.pkl', 'wb') as f:
@@ -639,17 +639,17 @@ class TDE(BaseModel):
 
         if 'CIFAR' in self.training_opt['dataset']:
             # CIFARs don't have val set, so use the latest model
-            self.logger.log('Validation on the latest model.')
+            self.logger.log.info('Validation on the latest model.')
             if not model_dir.endswith('.pth'):
                 model_dir = os.path.join(model_dir, 'latest_model_checkpoint.pth')
-            self.logger.log('Loading model from %s' % (model_dir))
+            self.logger.log.info('Loading model from %s' % (model_dir))
             checkpoint = torch.load(model_dir)          
             model_state = checkpoint['state_dict']
         else:
-            self.logger.log('Validation on the best model.')
+            self.logger.log.info('Validation on the best model.')
             if not model_dir.endswith('.pth'):
                 model_dir = os.path.join(model_dir, 'final_model_checkpoint.pth')
-            self.logger.log('Loading model from %s' % (model_dir))
+            self.logger.log.info('Loading model from %s' % (model_dir))
             checkpoint = torch.load(model_dir)          
             model_state = checkpoint['state_dict_best']
         
@@ -660,37 +660,37 @@ class TDE(BaseModel):
             #     2. retrain the entire classifier
             ##########################################
             if 'embed' in checkpoint:
-                self.logger.log('============> Load Moving Average <===========')
+                self.logger.log.info('============> Load Moving Average <===========')
                 self.embed_mean = checkpoint['embed']
             if not self.test_mode and 'Classifier' in self.config['networks'][key]['def_file']:
                 if 'tuning_memory' in self.config and self.config['tuning_memory']:
-                    self.logger.log('=============== WARNING! WARNING! ===============')
-                    self.logger.log('========> Only Tuning Memory Embedding  <========')
+                    self.logger.log.info('=============== WARNING! WARNING! ===============')
+                    self.logger.log.info('========> Only Tuning Memory Embedding  <========')
                     for param_name, param in self.networks[key].named_parameters():
                         # frezing all params only tuning memory_embeding
                         if 'embed' in param_name:
                             param.requires_grad = True
-                            self.logger.log('=====> Abandon Weight {} in {} from the checkpoints.'.format(param_name, key))
+                            self.logger.log.info('=====> Abandon Weight {} in {} from the checkpoints.'.format(param_name, key))
                             if param_name in model_state[key]:
                                 del model_state[key][param_name]
                         else:
                             param.requires_grad = False
-                        self.logger.log('=====> Tuning: {} | {}'.format(str(param.requires_grad).ljust(5, ' '), param_name))
-                    self.logger.log('=================================================')
+                        self.logger.log.info('=====> Tuning: {} | {}'.format(str(param.requires_grad).ljust(5, ' '), param_name))
+                    self.logger.log.info('=================================================')
                 else:
                     # Skip classifier initialization 
-                    #self.logger.log('================ WARNING! WARNING! ================')
-                    self.logger.log('=======> Load classifier from checkpoint <=======')
-                    #self.logger.log('===================================================')
+                    #self.logger.log.info('================ WARNING! WARNING! ================')
+                    self.logger.log.info('=======> Load classifier from checkpoint <=======')
+                    #self.logger.log.info('===================================================')
                     #continue
             weights = model_state[key]
             weights = {k: weights[k] for k in weights if k in model.state_dict()}
             x = model.state_dict()
             x.update(weights)
             if all([weights[k].sum().item() == x[k].sum().item() for k in weights if k in x]):
-                self.logger.log('=====> All keys in weights have been loaded to the module {}'.format(key))
+                self.logger.log.info('=====> All keys in weights have been loaded to the module {}'.format(key))
             else:
-                self.logger.log('=====> Error! Error! Error! Error! Loading failure in module {}'.format(key))
+                self.logger.log.info('=====> Error! Error! Error! Error! Loading failure in module {}'.format(key))
             model.load_state_dict(x)
     
     def __save_latest(self, epoch):
@@ -741,7 +741,7 @@ class TDE(BaseModel):
         eval_features_dir = f'{self.output_path}/eval_features_with_labels.pth'
         
         torch.save(eval_features, eval_features_dir)
-        self.logger.log('=====> Features with labels are saved as {}'.format(eval_features_dir))
+        self.logger.log.info('=====> Features with labels are saved as {}'.format(eval_features_dir))
     
 
         

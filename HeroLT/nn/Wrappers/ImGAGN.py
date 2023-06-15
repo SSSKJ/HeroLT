@@ -1,9 +1,9 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Models import GCN
-from HeroLT.nn.Models.ImGAGN_Generator import Generator
-from HeroLT.nn.Dataloaders import GraphDataLoader
-from HeroLT.utils.logger import get_logger
-from HeroLT.utils import performance_measure, normalize, sparse_mx_to_torch_sparse_tensor
+from . import BaseModel
+from ..Models import GCN
+from ..Models.ImGAGN_Generator import Generator
+from ..Dataloaders import GraphDataLoader
+from ...utils.logger import get_logger
+from ...utils import performance_measure, normalize, sparse_mx_to_torch_sparse_tensor
 
 import torch
 import torch.nn.functional as F
@@ -25,17 +25,17 @@ class ImGAGN(BaseModel):
         
         super().__init__(
             model_name = 'ImGAGN',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
-        self.__load_config()
+        super().load_config()
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
     
     def load_data(self):
 
         super().load_data()
 
-        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
+        self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
 
     def load_pretrained_model(self):
         ## todo
@@ -81,7 +81,7 @@ class ImGAGN(BaseModel):
             seed += 1
             torch.manual_seed(seed)
             torch.cuda.manual_seed(seed)
-            self.logger(f'seed: {seed}')
+            self.logger.info(f'seed: {seed}')
 
             # Model and optimizer
             self.__init_model()
@@ -193,7 +193,7 @@ class ImGAGN(BaseModel):
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test)
                 st += "  [*Best Test Result*][Epoch {}] ACC: {:.1f},  bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(
                     max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
-                self.logger(st)
+                self.logger.info(st)
 
             seed_result['acc'].append(float(best_test_result[0]))
             seed_result['bacc'].append(float(best_test_result[1]))
@@ -207,15 +207,15 @@ class ImGAGN(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        self.logger(
+        self.logger.info(
             '[Averaged result] ACC: {:.1f}+{:.1f}, bACC: {:.1f}+{:.1f}, Precision: {:.1f}+{:.1f}, Recall: {:.1f}+{:.1f}, mAP: {:.1f}+{:.1f}'.format(
                 np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision), np.std(precision),
                 np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger('ACC bACC Precision Recall mAP')
-        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
+        self.logger.info('ACC bACC Precision Recall mAP')
+        self.logger.info('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
                                                                                             np.std(precision), np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger(self.config)
-        self.logger("Total time elapsed: {:.4f}s".format(time.time() - t_total))
+        self.logger.info(self.config)
+        self.logger.info("Total time elapsed: {:.4f}s".format(time.time() - t_total))
     
     def __add_edges(adj_real, adj_new):
 

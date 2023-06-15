@@ -197,8 +197,8 @@ def test(net, logger):
 
     for x in filter(lambda p: p.requires_grad, net.parameters()):
         total_params += np.prod(x.data.numpy().shape)
-    logger("Total number of params", total_params)
-    logger("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
+    logger.info("Total number of params", total_params)
+    logger.info("Total layers", len(list(filter(lambda p: p.requires_grad and len(p.data.size())>1, net.parameters()))))
 
 
 if __name__ == "__main__":

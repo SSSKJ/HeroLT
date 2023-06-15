@@ -1,10 +1,10 @@
-from HeroLT.nn.Layers import GraphConvolution
+from ..Layers import GraphConvolution
 
 from torch import nn
 
-class GNN_Classifier(nn.Module):
+class Classifier(nn.Module):
     def __init__(self, layer, nhid, nclass, dropout, nhead=1, adj=None):
-        super(GNN_Classifier, self).__init__()
+        super(Classifier, self).__init__()
         if layer == 'gcn':
             self.conv = GraphConvolution(nhid, nhid)
             self.activation = nn.ReLU()

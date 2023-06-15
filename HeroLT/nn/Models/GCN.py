@@ -1,5 +1,5 @@
-from HeroLT.nn.Layers import GraphConvolution
-from HeroLT.nn.Modules import Attention
+from ..Layers import GraphConvolution
+from ..Modules import Attention
 
 import torch
 import torch.nn as nn

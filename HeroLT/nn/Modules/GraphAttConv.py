@@ -1,4 +1,4 @@
-from Layers import GraphAttConvOneHead
+from ..Layers import GraphAttConvOneHead
 
 import torch
 from torch import nn

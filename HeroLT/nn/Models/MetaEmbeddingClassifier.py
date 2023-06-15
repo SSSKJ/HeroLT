@@ -12,8 +12,8 @@ Copyright (c) 2019, Zhongqi Miao
 All rights reserved.
 """
 
-from HeroLT.nn.Models.CosNormClassifier import CosNorm_Classifier
-from HeroLT.utils import init_weights
+from .CosNormClassifier import CosNorm_Classifier
+from ...utils import init_weights
 
 import torch
 import torch.nn as nn
@@ -67,22 +67,22 @@ class MetaEmbedding_Classifier(nn.Module):
         return logits, [direct_feature, infused_feature]
     
 def create_model(logger, feat_dim=2048, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
-    logger('Loading Meta Embedding Classifier.')
+    logger.info('Loading Meta Embedding Classifier.')
     clf = MetaEmbedding_Classifier(feat_dim, num_classes)
 
     if not test:
         if stage1_weights:
             assert(dataset)
-            logger('Loading %s Stage 1 Classifier Weights.' % dataset)
+            logger.info('Loading %s Stage 1 Classifier Weights.' % dataset)
             if log_dir is not None:
                 weight_dir = path.join('/'.join(log_dir.split('/')[:-1]), 'stage1')
             else:
                 weight_dir = './logs/%s/stage1' % dataset
-            logger('==> Loading weights from %s' % weight_dir)
+            logger.info('==> Loading weights from %s' % weight_dir)
             clf.fc_hallucinator = init_weights(model=clf.fc_hallucinator,
                                                     weights_path=path.join(weight_dir, 'final_model_checkpoint.pth'),
                                                     classifier=True)
         else:
-            logger('Random initialized classifier weights.')
+            logger.info('Random initialized classifier weights.')
 
     return clf

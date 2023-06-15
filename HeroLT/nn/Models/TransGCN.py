@@ -1,5 +1,5 @@
-from HeroLT.nn.Layers import GraphConvolution
-from HeroLT.nn.Modules import Relation, Relationv2
+from ..Layers import GraphConvolution
+from ..Modules import Relation, Relationv2
 from .TailGNN_Generator import Generator
 
 import torch

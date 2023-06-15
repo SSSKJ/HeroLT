@@ -1,8 +1,8 @@
 import yaml
 import os
 
-from HeroLT.data import dataset_list
-from HeroLT.utils import special_mkdir
+from ...data import dataset_list
+from ...utils import special_mkdir
 
 class BaseModel:
 
@@ -25,10 +25,10 @@ class BaseModel:
         self.__testing_data = None
         self.__model = None
 
-        special_mkdir(f'{base_dir}/datasaets/', self.dataset_name)
+        special_mkdir(f'{base_dir}/data/', self.dataset_name)
         special_mkdir(f'{base_dir}/outputs/', self.dataset_name)
 
-    def __load_config(self):
+    def load_config(self):
 
         config_path = f'{self.base_dir}/configs/{self.model_name}/config.yaml'
         with open(config_path) as f:
@@ -36,7 +36,7 @@ class BaseModel:
 
     def load_data(self):
         
-        files = os.listdir(f'{self.base_dir}/datasets')
+        files = os.listdir(f'{self.base_dir}/data')
 
         if self.dataset_name not in files:
             ## download and unzip, move files into the right place

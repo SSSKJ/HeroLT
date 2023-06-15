@@ -1,9 +1,9 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Models import tailGNN
-from HeroLT.nn.Layers import Discriminator
-from HeroLT.utils import link_dropout, normalize_output, performance_measure
-from HeroLT.utils.logger import get_logger
-from HeroLT.nn.Dataloaders import GraphDataLoader
+from . import BaseModel
+from ..Models import tailGNN
+from ..Layers import Discriminator
+from ...utils import link_dropout, normalize_output, performance_measure
+from ...utils.logger import get_logger
+from ..Dataloaders import GraphDataLoader
 
 import torch
 from torch import nn
@@ -23,10 +23,10 @@ class TailGNN(BaseModel):
         
         super().__init__(
             model_name = 'TailGNN',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
-        self.__load_config()
+        super().load_config()
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
 
@@ -49,7 +49,7 @@ class TailGNN(BaseModel):
 
         super().load_data()
     
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/{self.dataset_name}/', self.logger)
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
         
     def train(self):
 
@@ -69,7 +69,7 @@ class TailGNN(BaseModel):
             seed += 1
             torch.manual_seed(seed)
             torch.cuda.manual_seed(seed)
-            self.logger(f'seed: {seed}')
+            self.logger.info(f'seed: {seed}')
 
             self.tail_adj = link_dropout(self.adj.cpu().numpy(), self.idx_train, k = self.config['k'])
             self.tail_adj = torch.FloatTensor(self.tail_adj)
@@ -108,7 +108,7 @@ class TailGNN(BaseModel):
                 else:
                     es += 1
                     if es >= self.config['ep_early']:
-                        self.logger("Early stopping!")
+                        self.logger.info("Early stopping!")
                         break
 
                 st = "[seed {}][{}][Epoch {}]".format(seed, 'TailGNN', epoch)
@@ -120,7 +120,7 @@ class TailGNN(BaseModel):
                     max_idx, best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4])
 
                 if epoch % 100 == 0:
-                    self.logger(st)
+                    self.logger.info(st)
 
             seed_result['acc'].append(float(best_test_result[0]))
             seed_result['bacc'].append(float(best_test_result[1]))
@@ -134,13 +134,13 @@ class TailGNN(BaseModel):
         recall = seed_result['recall']
         mAP = seed_result['mAP']
 
-        self.logger(
+        self.logger.info(
             '[Averaged result] ACC: {:.1f}+{:.1f}, bACC: {:.1f}+{:.1f}, Precision: {:.1f}+{:.1f}, Recall: {:.1f}+{:.1f}, mAP: {:.1f}+{:.1f}'.format(
                 np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision), np.std(precision), np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger('ACC bACC Precision Recall mAP')
-        self.logger('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
+        self.logger.info('ACC bACC Precision Recall mAP')
+        self.logger.info('{:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f} {:.1f}+{:.1f}'.format(np.mean(acc), np.std(acc), np.mean(bacc), np.std(bacc), np.mean(precision),
                                                                                             np.std(precision), np.mean(recall), np.std(recall), np.mean(mAP), np.std(mAP)))
-        self.logger(self.config)
+        self.logger.info(self.config)
 
     def __train_disc(self, epoch, batch):
         self.disc.train()

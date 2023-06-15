@@ -1,6 +1,8 @@
-from HeroLT.nn.Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder
-from HeroLT.nn.Samplers import recon_upsample
-from HeroLT.utils import adj_mse_loss, normalize_adj, normalize_sym
+from .GNN_Encoder import Encoder
+from .GNN_Classifier import Classifier
+from .GraphSMOTE_Decoder import Decoder
+from ..Samplers import recon_upsample
+from ...utils import adj_mse_loss, normalize_adj, normalize_sym
 
 import torch
 from torch import nn
@@ -14,10 +16,10 @@ class graphSMOTE(nn.Module):
         super(graphSMOTE, self).__init__()
         self.config = config
 
-        self.encoder = GNN_Encoder(layer=config['layer'], nfeat=config['nfeat'], nhid=config['nhid'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
-        self.classifier = GNN_Classifier(layer=config['layer'], nhid=config['nhid'], nclass=config['nclass'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
+        self.encoder = Encoder(layer=config['layer'], nfeat=config['nfeat'], nhid=config['nhid'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
+        self.classifier = Classifier(layer=config['layer'], nhid=config['nhid'], nclass=config['nclass'], nhead=config['nhead'], dropout=config['dropout'], adj=adj)
 
-        self.decoder = GraphSMOTE_Decoder(nhid=config['nhid'], dropout=config['dropout'])
+        self.decoder = Decoder(nhid=config['nhid'], dropout=config['dropout'])
 
     def forward(self, features, adj, labels, idx_train, pretrain=False):
         embed = self.encoder(features)

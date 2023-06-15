@@ -1,12 +1,12 @@
-from BaseModel import BaseModel
-from configs.MiLAS import _C as config
-from configs.MiLAS import update_config
-from Models import MiSLAS_resnet
-from Models import MiSLAS_resnet_cifar
-from Models import MiSLAS_resnet_places
-from tools.loaders import *
-from tools import LearnableWeightScaling, LabelAwareSmoothing
-from utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion
+from . import BaseModel
+from ...configs.MiLAS import _C as config
+from ...configs.MiLAS import update_config
+from ..Models import MiSLAS_resnet
+from ..Models import MiSLAS_resnet_cifar
+from ..Models import MiSLAS_resnet_places
+from ...tools.loaders import *
+from ...tools import LearnableWeightScaling, LabelAwareSmoothing
+from ...utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion
 
 import torch
 import torch.nn as nn
@@ -34,11 +34,11 @@ class MiSLAS(BaseModel):
         
         super().__init__(
             model_name = 'MiSLAS',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
 
-        self.__load_config()
+        super().load_config()
 
         self.ngpus_per_node = torch.cuda.device_count()
 
@@ -381,7 +381,7 @@ class MiSLAS(BaseModel):
 
                 loss = self.criterion(output, target)
 
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            acc1, acc5 = topk_accuracy(output, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
@@ -451,7 +451,7 @@ class MiSLAS(BaseModel):
                 output = self.lws_model(output)
                 loss = self.criterion(output, target)
 
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            acc1, acc5 = topk_accuracy(output, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
@@ -501,7 +501,7 @@ class MiSLAS(BaseModel):
                 loss = self.criterion(output, target)
 
                 # measure accuracy and record loss
-                acc1, acc5 = accuracy(output, target, topk=(1, 5))
+                acc1, acc5 = topk_accuracy(output, target, topk=(1, 5))
                 losses.update(loss.item(), images.size(0))
                 top1.update(acc1[0], images.size(0))
                 top5.update(acc5[0], images.size(0))

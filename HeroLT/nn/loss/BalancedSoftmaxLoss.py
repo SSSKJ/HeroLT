@@ -52,6 +52,6 @@ def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
 
 
 def create_loss(freq_path, logger, *args):
-    logger('Loading Balanced Softmax Loss.')
+    logger.info('Loading Balanced Softmax Loss.')
     return BalancedSoftmax(freq_path)
 

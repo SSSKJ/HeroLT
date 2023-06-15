@@ -680,25 +680,6 @@ def scheduler(epoch, curriculum_ep=500, func='convex'):
     elif func == 'composite':
         return (1/2) * np.cos((epoch*np.pi) / curriculum_ep) + 1/2
 
-def setupt_logger(save_dir, text, filename = 'log.txt'):
-    os.makedirs(save_dir, exist_ok=True)
-    logger = logging.getLogger(text)
-    # for each in logger.handlers:
-    #     logger.removeHandler(each)
-    logger.setLevel(4)
-    ch = logging.StreamHandler(stream=sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(message)s")
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    if save_dir:
-        fh = logging.FileHandler(os.path.join(save_dir, filename))
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-    logger.info("======================================================================================")
-    return logger
-
 def set_filename(args):
     rec_with_ep_pre = 'True_ep_pre_' + str(args.ep_pre) + '_rw_' + str(args.rw) if args.rec else 'False'
 

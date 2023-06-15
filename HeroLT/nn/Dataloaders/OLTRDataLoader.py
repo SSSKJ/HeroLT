@@ -1,8 +1,8 @@
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from HeroLT.nn.Datasets.DecouplingDataset import LT_Dataset
-from HeroLT.nn.Datasets.OLTRDataset import ConcatDataset
+from ..Datasets.DecouplingDataset import LT_Dataset
+from ..Datasets.OLTRDataset import ConcatDataset
 
 import numpy as np
 
@@ -36,20 +36,20 @@ class OLTRDataLoader:
         txt_split = phase if phase != 'train_plain' else 'train'
         txt = f'{data_root}/{dataset}_{txt_split}.txt'
 
-        logger('Loading data from %s' % (txt))
+        logger.info('Loading data from %s' % (txt))
 
         if phase not in ['train', 'val']:
             transform = cls.data_transforms['test']
         else:
             transform = cls.data_transforms[phase]
 
-        logger('Use data transformation:', transform)
+        logger.info('Use data transformation:', transform)
 
         set_ = LT_Dataset(data_root, txt, transform)
 
         if phase == 'test' and test_open:
             open_txt = './data/%s/%s_open.txt'%(dataset, dataset)
-            logger('Testing with opensets from %s'%(open_txt))
+            logger.info('Testing with opensets from %s'%(open_txt))
             open_set_ = LT_Dataset('./data/%s/%s_open'%(dataset, dataset), open_txt, transform)
             set_ = ConcatDataset([set_, open_set_])
 

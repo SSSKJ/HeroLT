@@ -1,20 +1,15 @@
-from HeroLT.utils import source_import
-from HeroLT.nn.Wrappers import CVModel
-from HeroLT.nn.Schedulers import CosineAnnealingLRWarmup
-from HeroLT.utils.logger import Logger
-from HeroLT.nn.Dataloaders import BALMSDataLoader
-from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority
+from ...utils import source_import
+from . import CVModel
+from ..Schedulers import CosineAnnealingLRWarmup
+from ..Dataloaders import BALMSDataLoader
+from ...utils import torch2numpy, mic_acc_cal, get_priority
 
 import torch
 from torch import nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-import os
 import copy
-import pickle
-import numpy as np
-from tqdm import tqdm
 import math
 import higher
 
@@ -30,10 +25,10 @@ class BALMS(CVModel):
         
         super().__init__(
             model_name = 'BALM',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)
         
-        self.__load_config()
+        super().load_config()
 
         self.meta_sample = False
         self.learner = None
@@ -53,7 +48,7 @@ class BALMS(CVModel):
             self.optimizer_meta = torch.optim.Adam(self.learner.parameters(),
                                                    lr=self.training_opt['sampler'].get('lr', 0.01))
 
-        self.logger.log("Using", torch.cuda.device_count(), "GPUs.")
+        self.logger.log.info("Using", torch.cuda.device_count(), "GPUs.")
         
         for key, val in networks_defs.items():
 
@@ -63,7 +58,7 @@ class BALMS(CVModel):
             # model_args.append(self.test_mode)
             model_args = val['params']
             model_args.update({'test': self.test_mode})
-            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger.log})
 
             self.networks[key] = source_import(f'{self.base_dir}/nn/Models/{def_file}.py').create_model(**model_args)
             if 'KNNClassifier' in type(self.networks[key]).__name__:
@@ -73,12 +68,12 @@ class BALMS(CVModel):
                 self.networks[key] = nn.DataParallel(self.networks[key]).cuda()
 
             if 'fix' in val and val['fix']:
-                self.logger.log('Freezing feature weights except for self attention weights (if exist).')
+                self.logger.log.info('Freezing feature weights except for self attention weights (if exist).')
                 for param_name, param in self.networks[key].named_parameters():
                     # Freeze all parameters except self attention parameters
                     if 'selfatt' not in param_name and 'fc' not in param_name:
                         param.requires_grad = False
-                    # self.logger.log('  | ', param_name, param.requires_grad)
+                    # self.logger.log.info('  | ', param_name, param.requires_grad)
 
             if self.meta_sample and key!='classifier':
                 # avoid adding classifier parameters to the optimizer,
@@ -102,13 +97,13 @@ class BALMS(CVModel):
         for key, val in criterion_defs.items():
             def_file = val['def_file']
             loss_args = val['loss_params']
-            loss_args.update({'logger': self.logger})
+            loss_args.update({'logger': self.logger.log})
 
             self.criterions[key] = source_import(f'{self.base_dir}/nn/Loss/{def_file}.py').create_loss(*loss_args).cuda()
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
-                self.logger.log('Initializing criterion optimizer.')
+                self.logger.log.info('Initializing criterion optimizer.')
                 optim_params = val['optim_params']
                 optim_params = [{'params': self.criterions[key].parameters(),
                                 'lr': optim_params['lr'],
@@ -123,17 +118,17 @@ class BALMS(CVModel):
     def __init_optimizer_and_scheduler(self, optim_params):
 
         # Initialize model optimizer and scheduler
-        self.logger.log('Initializing model optimizer.')
+        self.logger.log.info('Initializing model optimizer.')
         self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizer(self.model_optim_params_list)
 
     def __init_optimizer(self, optim_params):
         optimizer = optim.SGD(optim_params)
         if self.config['coslr']:
-            self.logger.log("===> Using coslr eta_min={}".format(self.config['endlr']))
+            self.logger.log.info("===> Using coslr eta_min={}".format(self.config['endlr']))
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, self.training_opt['num_epochs'], eta_min=self.config['endlr'])
         elif self.config['coslrwarmup']:
-            self.logger.log("===> Using coslrwarmup eta_min={}, warmup_epochs={}".format(
+            self.logger.log.info("===> Using coslrwarmup eta_min={}, warmup_epochs={}".format(
                 self.config['endlr'],self.config['warmup_epochs']))
             scheduler = CosineAnnealingLRWarmup(
                 optimizer=optimizer,
@@ -167,7 +162,7 @@ class BALMS(CVModel):
         # If using steps for training, we need to calculate training steps 
         # for each epoch based on actual number of training data instead of 
         # oversampled data number 
-        self.logger.log('Using steps for training.')
+        self.logger.log.info('Using steps for training.')
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num  \
                                 / self.training_opt['batch_size'])
@@ -179,8 +174,8 @@ class BALMS(CVModel):
             self.criterions['FeatureLoss'].centroids.data = self.__centroids_cal(self.data['train_plain'])
 
         # When training the network
-        self.logger.log('-----------------------------------Phase: train-----------------------------------')
-        self.logger.log(f'Do shuffle??? --- {self.do_shuffle}')
+        self.logger.log.info('-----------------------------------Phase: train-----------------------------------')
+        self.logger.log.info(f'Do shuffle??? --- {self.do_shuffle}')
 
         # Initialize best model
         best_model_weights = {}
@@ -214,7 +209,7 @@ class BALMS(CVModel):
                 if step == self.epoch_steps:
                     break
                 if self.do_shuffle:
-                    inputs, labels = self.__shuffle_batch(inputs, labels)
+                    inputs, labels = super().shuffle_batch(inputs, labels)
                 inputs, labels = inputs.cuda(), labels.cuda()
 
                 # If on training phase, enable gradients
@@ -224,11 +219,11 @@ class BALMS(CVModel):
                         self.__meta_forward(inputs, labels, verbose=step % self.training_opt['display_step'] == 0)
                         
                     # If training, forward with loss, and no top 5 accuracy calculation
-                    self.__batch_forward(inputs, labels, 
+                    super().batch_forward(inputs, labels, 
                                        centroids=self.memory['centroids'],
                                        phase='train')
-                    self.__batch_loss(labels)
-                    self.__batch_backward()
+                    super().batch_loss(labels)
+                    super().batch_backward()
 
                     # Tracking predictions
                     _, preds = torch.max(self.logits, 1)
@@ -245,11 +240,11 @@ class BALMS(CVModel):
                         minibatch_loss_total = self.loss.item()
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
-                        self.logger.log('Step: %5d' % (step))
-                        self.logger.log('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
-                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
-                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
+                        self.logger.log.info('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.log.info('Step: %5d' % (step))
+                        self.logger.log.info('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
+                        self.logger.log.info('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.log.info('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
 
                         loss_info = {
                                 'Epoch': epoch,
@@ -279,8 +274,8 @@ class BALMS(CVModel):
 
             # After every epoch, validation
             rsls = {'epoch': epoch}
-            rsls_train = self.__eval_with_preds(total_preds, total_labels)
-            rsls_eval = self.eval(phase='val')
+            rsls_train = super().eval_with_preds(total_preds, total_labels)
+            rsls_eval = super().eval(phase='val')
             rsls.update(rsls_train)
             rsls.update(rsls_eval)
 
@@ -302,19 +297,19 @@ class BALMS(CVModel):
                 best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
                 best_model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
             
-            self.logger.log('===> Saving checkpoint')
-            self.__save_latest(epoch)
+            self.logger.log.info('===> Saving checkpoint')
+            super().save_latest(epoch)
 
-        self.logger.log('Training Complete.')
+        self.logger.log.info('Training Complete.')
 
-        self.logger.log('est validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
+        self.logger.log.info('est validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
         # Save the best model and best centroids if calculated
-        self.__save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
+        super().save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
 
         # Test on the test set
-        self.__reset_model(best_model_weights)
-        self.eval('test' if 'test' in self.data else 'val')
-        self.logger.log('Done')
+        super().reset_model(best_model_weights)
+        super().eval('test' if 'test' in self.data else 'val')
+        self.logger.log.info('Done')
 
     
 
@@ -326,8 +321,8 @@ class BALMS(CVModel):
 
         super().load_data()
 
-        self.logger.log('Loading data for Training')
-        self.logger.log(self.config)
+        self.logger.log.info('Loading data for Training')
+        self.logger.log.info(self.config)
 
         dataset = self.dataset_name.lower()
 
@@ -405,7 +400,7 @@ class BALMS(CVModel):
 
         else:
 
-            self.logger.log('Under testing phase, we load training data simply to calculate \
+            self.logger.log.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
             if dataset == 'inatural2018':
@@ -469,7 +464,7 @@ class BALMS(CVModel):
                 s += 'class{}={:.3f}, '.format(i, prob[i].item())
             max_mem_mb = torch.cuda.max_memory_allocated() / 1024.0 / 1024.0
             s += ', Max Mem: {:.0f}M'.format(max_mem_mb)
-            self.logger.log(s)
+            self.logger.log.info(s)
     
 
 
@@ -480,8 +475,8 @@ class BALMS(CVModel):
 
         model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
-        self.logger.log('Validation on the best model.')
-        self.logger.log('Loading model from %s' % (model_dir))
+        self.logger.log.info('Validation on the best model.')
+        self.logger.log.info('Loading model from %s' % (model_dir))
         
         checkpoint = torch.load(model_dir)          
         model_state = checkpoint['state_dict_best']
@@ -493,7 +488,7 @@ class BALMS(CVModel):
             if not self.test_mode and \
                 'DotProductClassifier' in self.config['networks'][key]['def_file']:
                 # Skip classifier initialization 
-                self.logger.log('Skiping classifier initialization')
+                self.logger.log.info('Skiping classifier initialization')
                 continue
             weights = model_state[key]
             weights = {k: weights[k] for k in weights if k in model.state_dict()}

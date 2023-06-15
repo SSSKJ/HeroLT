@@ -6,13 +6,13 @@ import torch.nn.functional as F
 
 import math
 
-class GraphSMOTE_Decoder(nn.Module):
+class Decoder(nn.Module):
     """
     Edge Reconstruction adopted in GraphSMOTE (https://arxiv.org/abs/2103.08826)
     """
 
     def __init__(self, nhid, dropout=0.1):
-        super(GraphSMOTE_Decoder, self).__init__()
+        super(Decoder, self).__init__()
         self.dropout = dropout
         self.de_weight = Parameter(torch.FloatTensor(nhid, nhid))
         self.reset_parameters()

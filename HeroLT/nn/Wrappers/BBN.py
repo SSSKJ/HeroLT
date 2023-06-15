@@ -1,9 +1,13 @@
-from BaseModel import BaseModel
-from configs.BBN import _C as config
-from configs.BBN import update_config
-from Schedulers.lr_scheduler import WarmupMultiStepLR
-from Models import BBN_Network, BBN_Combiner
-from tools.evaluations import accuracy, AverageMeter, FusionMatrix
+from . import BaseModel
+from ...configs.BBN import _C as config
+from ...configs.BBN import update_config
+from ..Schedulers import WarmupMultiStepLR
+from ..Models import BBN_Network, BBN_Combiner
+from ...utils import accuracy, AverageMeter, FusionMatrix
+from ...utils.logger import get_logger
+from ..Datasets.BBNDataset import IMBALANCECIFAR10, IMBALANCECIFAR100, iNaturalist
+from ..Loss import CSCE, CrossEntropy, LDAMLoss
+
 
 import torch
 import torch.backends.cudnn as cudnn
@@ -18,18 +22,20 @@ class BBN(BaseModel):
     def __init__(
             self,
             dataset: str,
-            device: str,
             base_dir: str = '../../',
             ) -> None:
         
         super().__init__(
             model_name = 'BBN',
-            dataset = dataset,
-            device = device,
+            dataset_name = dataset,
             base_dir = base_dir)
         
-        self.__load_config()
+        super().load_config()
+
+        self.log = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
         self.device = torch.device("cpu" if self.config.CPU_MODE else "cuda")
+        self.train_set = None
+        self.valid_set = None
 
 
     def __load_config(self):
@@ -117,7 +123,8 @@ class BBN(BaseModel):
         cudnn.benchmark = True
         auto_resume = True
 
-        self.load_data()
+        if self.train_set is None or self.valid_set is None:
+            self.load_data()
 
         self.annotations = self.train_set.get_annotations()
         self.num_classes = self.train_set.get_num_classes()

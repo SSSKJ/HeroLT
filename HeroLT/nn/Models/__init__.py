@@ -2,9 +2,6 @@ from .GCN import GCN
 from .TransGCN import TransGCN
 from .tailGNN import tailGNN
 from .graphSMOTE import graphSMOTE
-from .GNN_Encoder import GNN_Encoder
-from .GNN_Classifier import GNN_Classifier
-from .GraphSMOTE_Decoder import GraphSMOTE_Decoder
 from .MLP import MLP
 from .lTE4G import lTE4G
 from .BBN_Combiner import BBN_Combiner

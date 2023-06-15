@@ -1,4 +1,4 @@
-from BaseModel import BaseModel
+from . import BaseModel
 
 class XTransformer(BaseModel):
 
@@ -11,5 +11,5 @@ class XTransformer(BaseModel):
         
         super().__init__(
             model_name = 'XTransformer',
-            dataset = dataset,
+            dataset_name = dataset,
             base_dir = base_dir)

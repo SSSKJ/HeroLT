@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
 
-from HeroLT.utils import init_weights
+from ...utils import init_weights
 from os import path
 
 class DotProduct_Classifier(nn.Module):
@@ -29,13 +29,13 @@ class DotProduct_Classifier(nn.Module):
         return x, None
     
 def create_model(logger, feat_dim, num_classes=1000, stage1_weights=False, dataset=None, log_dir=None, test=False, *args):
-    logger('Loading Dot Product Classifier.')
+    logger.info('Loading Dot Product Classifier.')
     clf = DotProduct_Classifier(num_classes, feat_dim)
 
     if not test:
         if stage1_weights:
             assert(dataset)
-            logger('Loading %s Stage 1 Classifier Weights.' % dataset)
+            logger.info('Loading %s Stage 1 Classifier Weights.' % dataset)
             if log_dir is not None:
                 subdir = log_dir.strip('/').split('/')[-1]
                 subdir = subdir.replace('stage2', 'stage1')
@@ -43,11 +43,11 @@ def create_model(logger, feat_dim, num_classes=1000, stage1_weights=False, datas
                 # weight_dir = path.join('/'.join(log_dir.split('/')[:-1]), 'stage1')
             else:
                 weight_dir = './logs/%s/stage1' % dataset
-            logger('==> Loading classifier weights from %s' % weight_dir)
+            logger.info('==> Loading classifier weights from %s' % weight_dir)
             clf.fc = init_weights(model=clf.fc,
                                   weights_path=path.join(weight_dir, 'final_model_checkpoint.pth'),
                                   classifier=True)
         else:
-            logger('Random initialized classifier weights.')
+            logger.info('Random initialized classifier weights.')
 
     return clf
