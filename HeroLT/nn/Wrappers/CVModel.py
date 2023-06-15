@@ -36,6 +36,8 @@ class CVModel(BaseModel):
         self.num_gpus = torch.cuda.device_count()
         self.do_shuffle = self.config['shuffle'] if 'shuffle' in self.config else False
 
+        self.scheduler_params = self.training_opt['scheduler_params']
+
     
     def __load_config(self):
         super().__load_config()

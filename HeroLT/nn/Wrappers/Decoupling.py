@@ -33,7 +33,6 @@ class Decoupling(CVModel):
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
         self.logger.log('Initializing model optimizer.')
-        self.scheduler_params = self.training_opt['scheduler_params']
         self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
 
     def load_data(

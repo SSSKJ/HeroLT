@@ -3,7 +3,7 @@ from HeroLT.nn.Wrappers import CVModel
 from HeroLT.nn.Schedulers import CosineAnnealingLRWarmup
 from HeroLT.utils.logger import Logger
 from HeroLT.nn.Dataloaders import BALMSDataLoader
-from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
+from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority
 
 import torch
 from torch import nn
@@ -116,7 +116,7 @@ class BALMS(CVModel):
                                 'weight_decay': optim_params['weight_decay']}]
                 # Initialize criterion optimizer and scheduler
                 self.criterion_optimizer, \
-                self.criterion_optimizer_scheduler = self.__init_optimizer_and_scheduler(optim_params)
+                self.criterion_optimizer_scheduler = self.__init_optimizer(optim_params)
             else:
                 self.criterion_optimizer = None
     
@@ -124,9 +124,9 @@ class BALMS(CVModel):
 
         # Initialize model optimizer and scheduler
         self.logger.log('Initializing model optimizer.')
-        self.scheduler_params = self.training_opt['scheduler_params']
-        self.model_optimizer, self.model_optimizer_scheduler = self.init_optimizers(self.model_optim_params_list)
+        self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizer(self.model_optim_params_list)
 
+    def __init_optimizer(self, optim_params):
         optimizer = optim.SGD(optim_params)
         if self.config['coslr']:
             self.logger.log("===> Using coslr eta_min={}".format(self.config['endlr']))
@@ -312,7 +312,7 @@ class BALMS(CVModel):
         self.__save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
 
         # Test on the test set
-        self.reset_model(best_model_weights)
+        self.__reset_model(best_model_weights)
         self.eval('test' if 'test' in self.data else 'val')
         self.logger.log('Done')
 
