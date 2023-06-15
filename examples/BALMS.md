@@ -11,8 +11,10 @@
 5. 运行以下语句进行复现
 
    ```python
+   import sys
+   sys.path.append('../')  
    from HeroLT.nn.Wrappers import BALMS
-   model = BALMS('imagenet_lt', './HeroLT/', True)
+   model = BALMS('imagenet_lt', '../HeroLT/', True)
    model.load_pretrained_model()
    model.train() ## train if you need to
    model.load_data()
