@@ -21,22 +21,30 @@ We provide a fair and accessible performance evaluation of 13 state-of-the-art m
 ## Code Structure
 ```
 HeroLT
-├── framework
+├── HeroLT
+│   ├── configs                  # Customizable configurations 
 │   ├── data                     # Datasets in HeroLT 
 │   |   ├── ... ..
-│   ├── nn           
-│   |   ├── layers              # Implementation for layers (i.e., graph convolution)
-│   |   ├── Models              # 
-│   |   ├── Modules             # 
-│   |   ├── Wrappers            # 
+│   ├── nn       
+│   |   ├── Dataloaders
+│   |   ├── Datasets    
+│   |   ├── layers              
+│   |   ├── Models              
+│   |   ├── Modules             
+│   |   ├── Samplers
+│   |   ├── Schedulers
+│   |   ├── Wrappers            # Algorithms in HeroLT
 │   |   ├── loss                # Loss functions in long-tailed learning 
+│   |   ├── pecos
+│   |   ├── xbert
+│   ├── outputs                          
 │   |   ├── ... ..
-│   ├── tools                   #         
+│   ├── tools                          
 │   |   ├── ... ..
 │   ├── utils                   # utility functions and classes      
-│   |   ├── ... ..         
-│   ├── ... ...          
-├── examples                    #
+│   |   ├── ... ..                 
+├── examples                    # Examples of running the specific method
+├── figs
 └── README.md
 ```
 
@@ -48,17 +56,12 @@ We provide the following example for users to quickly implementing HerolT.
 
 First of all, users need to clone the source code and install the required packages:
 
-- scikit-learn==0.20.3
-- pyod==1.0.0
-- Keras==2.8.0
-- tensorflow==2.8.0
-- torch==1.9.0
-- rtdl==0.0.13
-- delu
-- lightgbm
-- xgboost
-- catboost 
-- copulas
+- torch==1.10.2
+- torch-geometric==2.0.4
+- torchvision
+- numpy==1.21.5
+- scipy==1.7.3
+- scikit-learn==1.1.1
 
 <!-- ```bash
 git clone https://github.com/SSSKJ/HeroLT/
@@ -67,27 +70,29 @@ cd HeroLT
 
 ### Step 2. Prepare datasets
 
-To run an LT task, users should prepare a dataset. The DataZoo provided in HeroLT can help to automatically download and preprocess widely-used public datasets for various LT applications, including CV, NLP, graph learning, etc. Users can directly specify `data = DATASET_NAME`in the configuration. For example, 
+To run an LT task, users should prepare a dataset. The DataZoo provided in HeroLT can help to automatically download and preprocess widely-used public datasets for various LT applications, including CV, NLP, graph learning, etc. Users can directly specify `dataset = DATASET_NAME`in the configuration. For example, 
 
 ```bash
-data = 'Cora_Full'
+GraphSMOTE('cora-full', './HeroLT/')
 ```
 
 ### Step 3. Prepare models
 
-Then, users should specify the model architecture that will be trained. HeroLT provides a ModelZoo that contains the implementation of widely adopted model architectures for various LT tasks. Users can set up `model = MODEL_NAME` to apply a specific model architecture in LT tasks. For example,
+Then, users should specify the model architecture that will be trained. HeroLT provides a ModelZoo that contains the implementation of widely adopted model architectures for various LT tasks. Users can import `MODEL_NAME` to apply a specific model architecture in LT tasks. For example,
 
 ```bash
-model = 'GraphSMOTE'
+from HeroLT.nn.Wrappers import GraphSMOTE
 ```
 
 ### Step 4. Start running
 
-Here we demonstrate how to run a standard LT task with HeroLT, with setting `data = 'Cora_Full'`and `model = 'GraphSMOTE'` to run GraphSMOTE for an node classification task on Cora_Full dataset. Users can customize training configurations, such as `lr`, in the configuration, and run a standard LT task as: 
+Here we demonstrate how to run a standard LT task with HeroLT, with setting `dataset = 'cora_full'`and import `GraphSMOTE` to run GraphSMOTE for an node classification task on Cora_Full dataset. Users can customize training configurations, such as `lr`, in the `configs/GraphSMOTE/config.yaml`, and run a standard LT task as: 
 
 ```bash
-# Run with custom configurations
-python main.py ---data 'Cora_Full' --model 'GraphSMOTE' --lr ${lr}
+# Run with default configurations
+from HeroLT.nn.Wrappers import GraphSMOTE
+model = GraphSMOTE('cora-full', './HeroLT/')
+model.train()
 ```
 
 Then you can observe some monitored metrics during the training process as:
@@ -107,7 +112,7 @@ Then you can observe some monitored metrics during the training process as:
 
 ## Algorithms
 
-HeroLT includes [13 algorithms](https://github.com/SSSKJ/HeroLT/framework/nn/Wrappers), as shown in the following Table.
+HeroLT includes [13 algorithms](https://github.com/SSSKJ/HeroLT/HeroLT/nn/Wrappers), as shown in the following Table.
 
 | Algorithm      | Venue     | Long-tailedness                          | Task                                        |
 |----------------|-----------|------------------------------------------|---------------------------------------------|
@@ -128,7 +133,7 @@ HeroLT includes [13 algorithms](https://github.com/SSSKJ/HeroLT/framework/nn/Wra
 
 ## Datasets
 
-HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/framework/data), as shown in the following Table.
+HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/HeroLT/data), as shown in the following Table.
         
 |                    | Data Statistics |                 |           |            | Long-Tailedness |       |        |
 |--------------------|-----------------|-----------------|-----------|------------|-----------------|:-----:|--------|
