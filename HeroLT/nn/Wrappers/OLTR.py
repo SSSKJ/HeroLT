@@ -1,12 +1,16 @@
-from BaseModel import BaseModel
-from utils import source_import
-from tools.loaders import OLTR_loader
-from utils import *
+from HeroLT.nn.Wrappers import BaseModel
+from HeroLT.nn.Dataloaders import OLTRDataLoader
+from HeroLT.utils import source_import, class_count, mic_acc_cal, F_measure, shot_acc
+from HeroLT.utils.logger import get_logger
 
 import torch
 from torch import nn
 import torch.optim as optim
+import torch.nn.functional as F
 
+import numpy as np
+
+import os
 import copy
 from tqdm import tqdm
 
@@ -27,6 +31,10 @@ class OLTR(BaseModel):
         
         self.__load_config()
         self.test_mode = test_mode
+        self.networks = None
+
+        self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
+        self.logger(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
             
@@ -39,12 +47,14 @@ class OLTR(BaseModel):
 
         for key, val in criterion_defs.items():
             def_file = val['def_file']
-            loss_args = val['loss_params'].values()
+            loss_args = val['loss_params']
+            loss_args.update({'logger': self.logger})
+
             self.criterions[key] = source_import(def_file).create_loss(*loss_args).to(self.device)
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
-                print('Initializing criterion optimizer.')
+                self.logger('Initializing criterion optimizer.')
                 optim_params = val['optim_params']
                 optim_params = [{'params': self.criterions[key].parameters(),
                                 'lr': optim_params['lr'],
@@ -58,7 +68,7 @@ class OLTR(BaseModel):
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
-        print('Initializing model optimizer.')
+        self.logger('Initializing model optimizer.')
         self.scheduler_params = self.training_opt['scheduler_params']
         self.model_optimizer, \
         self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
@@ -91,7 +101,7 @@ class OLTR(BaseModel):
 
         # Initialize model
         self.__init_model()
-        print('Using steps for training.')
+        self.logger('Using steps for training.')
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num  \
                                 / self.training_opt['batch_size'])
@@ -104,7 +114,7 @@ class OLTR(BaseModel):
                 self.__centroids_cal(self.data['train_plain'])
         
         # When training the network
-        print('Phase: train')
+        self.logger('-----------------------------------Phase: train-----------------------------------')
 
         # Initialize best model
         best_model_weights = {}
@@ -151,16 +161,12 @@ class OLTR(BaseModel):
                         _, preds = torch.max(self.logits, 1)
                         minibatch_acc = mic_acc_cal(preds, labels)
 
-                        print('Epoch: [%d/%d]' 
-                                     % (epoch, self.training_opt['num_epochs']),
-                                     'Step: %5d' 
-                                     % (step),
-                                     'Minibatch_loss_feature: %.3f' 
-                                     % (minibatch_loss_feat) if minibatch_loss_feat else '',
-                                     'Minibatch_loss_performance: %.3f' 
-                                     % (minibatch_loss_perf),
-                                     'Minibatch_accuracy_micro: %.3f'
-                                      % (minibatch_acc))
+                        self.logger.log('Epoch: [%d/%d]' % (epoch, self.training_opt['num_epochs']))
+                        self.logger.log('Step: %5d' % (step))
+                        self.logger.log('Minibatch_loss_feature: %.3f' % (minibatch_loss_feat) if minibatch_loss_feat else '')
+                        self.logger.log('Minibatch_loss_performance: %.3f' % (minibatch_loss_perf) if minibatch_loss_perf else '',)
+                        self.logger.log('Minibatch_accuracy_micro: %.3f' % (minibatch_acc))
+
 
             # Set model modes and set scheduler
             # In training, step optimizer scheduler and set model to train()
@@ -179,14 +185,58 @@ class OLTR(BaseModel):
                 best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
                 best_model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
 
-        print()
-        print('Training Complete.')
+        self.logger('Training Complete.')
 
-        print('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
+        self.logger('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
         # Save the best model and best centroids if calculated
         self.__save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
                 
-        print('Done')
+        self.logger('Done')
+    
+    def eval(self, phase='val', openset=False):
+
+        self.logger.log('-----------------------------------Phase: %s-----------------------------------' % (phase))
+
+        torch.cuda.empty_cache()
+
+        # In validation or testing mode, set model to eval() and initialize running loss/correct
+        for model in self.networks.values():
+            model.eval()
+
+        self.total_logits = torch.empty((0, self.training_opt['num_classes'])).to(self.device)
+        self.total_labels = torch.empty(0, dtype=torch.long).to(self.device)
+        self.total_paths = np.empty(0)
+
+        # Iterate over dataset
+        for inputs, labels, paths in tqdm(self.data[phase]):
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+            # If on training phase, enable gradients
+            with torch.set_grad_enabled(False):
+
+                # In validation or testing
+                self.__batch_forward(inputs, labels, 
+                                   centroids=self.memory['centroids'],
+                                   phase=phase)
+                self.total_logits = torch.cat((self.total_logits, self.logits))
+                self.total_labels = torch.cat((self.total_labels, labels))
+                self.total_paths = np.concatenate((self.total_paths, paths))
+
+        probs, preds = F.softmax(self.total_logits.detach(), dim=1).max(dim=1)
+
+        # Calculate the overall accuracy and F measurement
+        self.eval_acc_mic_top1= mic_acc_cal(preds[self.total_labels != -1],
+                                            self.total_labels[self.total_labels != -1])
+        self.eval_f_measure = F_measure(preds, self.total_labels, openset=openset,
+                                        theta=self.training_opt['open_threshold'])
+        self.many_acc_top1, \
+        self.median_acc_top1, \
+        self.low_acc_top1 = shot_acc(preds[self.total_labels != -1],
+                                     self.total_labels[self.total_labels != -1], 
+                                     self.data['train'])
+        # Top-1 accuracy and additional string
+        self.logger.log('Phase: %s, Evaluation_accuracy_micro_top1: %.3f, Averaged F-measure: %.3f, Many_shot_accuracy_top1: %.3f, Median_shot_accuracy_top1: %.3f, Low_shot_accuracy_top1: %.3f' 
+            % (phase, self.eval_acc_mic_top1, self.eval_f_measure, self.many_acc_top1, self.median_acc_top1, self.low_acc_top1),)
 
     def load_data(
             self,
@@ -208,7 +258,7 @@ class OLTR(BaseModel):
 
                 return self.__training_data
 
-            print('Loading data for Training')
+            self.logger('Loading data for Training')
             sampler_defs = training_opt['sampler']
             if sampler_defs:
                 sampler_dic = {'sampler': source_import(sampler_defs['def_file']).get_sampler(), 
@@ -216,7 +266,7 @@ class OLTR(BaseModel):
             else:
                 sampler_dic = None
 
-            self.__training_data = {x: OLTR_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
+            self.__training_data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
                                         dataset=self.dataset_name, 
                                         phase=x, 
                                         batch_size=training_opt['batch_size'],
@@ -231,11 +281,11 @@ class OLTR(BaseModel):
 
                 return self.__testing_data
 
-            print('Loading data for Testing')
-            print('Under testing phase, we load training data simply to calculate \
+            self.logger('Loading data for Testing')
+            self.logger('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
-            data = {x: OLTR_loader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
+            data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
                                         dataset=dataset, 
                                         phase=x,
                                         batch_size=training_opt['batch_size'],
@@ -248,13 +298,13 @@ class OLTR(BaseModel):
             self.data = data
 
 
-    def __init_model(self, optimizer=True):
+    def __init_model(self):
 
         networks_defs = self.config['networks']
         self.networks = {}
         self.model_optim_params_list = []
 
-        print("Using", torch.cuda.device_count(), "GPUs.")
+        self.logger("Using", torch.cuda.device_count(), "GPUs.")
         
         for key, val in networks_defs.items():
 
@@ -262,12 +312,13 @@ class OLTR(BaseModel):
             def_file = val['def_file']
             model_args = list(val['params'].values())
             model_args.append(self.test_mode)
+            model_args.update({'dataset': self.dataset_name, 'log_dir': self.output_path, 'logger': self.logger})
 
             self.networks[key] = source_import(def_file).create_model(*model_args)
             self.networks[key] = nn.DataParallel(self.networks[key]).to(self.device)
             
             if 'fix' in val and val['fix']:
-                print('Freezing feature weights except for modulated attention weights (if exist).')
+                self.logger('Freezing feature weights except for modulated attention weights (if exist).')
                 for param_name, param in self.networks[key].named_parameters():
                     # Freeze all parameters except self attention parameters
                     if 'modulatedatt' not in param_name and 'fc' not in param_name:
@@ -334,7 +385,7 @@ class OLTR(BaseModel):
         centroids = torch.zeros(self.training_opt['num_classes'],
                                    self.training_opt['feature_dim']).cuda()
 
-        print('Calculating centroids.')
+        self.logger('Calculating centroids.')
 
         for model in self.networks.values():
             model.eval()
@@ -357,12 +408,14 @@ class OLTR(BaseModel):
         return centroids
 
     def load_pretrained_model(self):
+
+        if self.networks is None:
+            self.__init_model()
             
-        model_dir = os.path.join(self.training_opt['log_dir'], 
-                                 'final_model_checkpoint.pth')
+        model_dir = model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
-        print('Validation on the best model.')
-        print('Loading model from %s' % (model_dir))
+        self.logger('Validation on the best model.')
+        self.logger('Loading model from %s' % (model_dir))
         
         checkpoint = torch.load(model_dir)          
         model_state = checkpoint['state_dict_best']
@@ -384,7 +437,16 @@ class OLTR(BaseModel):
                 'best_acc': best_acc,
                 'centroids': centroids}
 
-        model_dir = os.path.join(self.training_opt['log_dir'], 
-                                 'final_model_checkpoint.pth')
+        model_dir = model_dir = f'{self.output_path}/final_model_checkpoint.pth'
 
         torch.save(model_states, model_dir)
+
+    def output_logits(self, openset=False):
+
+        filename = os.path.join(self.output_path, 
+                                'logits_%s'%('open' if openset else 'close'))
+        self.logger.log("Saving total logits to: %s.npz" % filename)
+        np.savez(filename, 
+                 logits=self.total_logits.detach().cpu().numpy(), 
+                 labels=self.total_labels.detach().cpu().numpy(),
+                 paths=self.total_paths)
