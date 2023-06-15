@@ -780,7 +780,7 @@ def link_dropout(adj, idx, k=5):
 
 
 # Tang Kaihua New Add
-def print_grad_norm(named_parameters, verbose=False):
+def print_grad_norm(named_parameters, logger, verbose=False):
     if not verbose:
         return None
 
@@ -796,10 +796,10 @@ def print_grad_norm(named_parameters, verbose=False):
 
     total_norm = total_norm ** (1. / 2)
 
-    print('----------Total norm {:.5f}-----------------'.format(total_norm))
+    logger('----------Total norm {:.5f}-----------------'.format(total_norm))
     for name, norm in sorted(param_to_norm.items(), key=lambda x: -x[1]):
-        print("{:<50s}: {:.5f}, ({})".format(name, norm, param_to_shape[name]))
-    print('-------------------------------')
+        logger("{:<50s}: {:.5f}, ({})".format(name, norm, param_to_shape[name]))
+    logger('-------------------------------')
 
     return total_norm
 
