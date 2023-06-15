@@ -4,7 +4,7 @@ from HeroLT.nn.Datasets.DecouplingDataset import LT_Dataset
 from HeroLT.nn.Dataloaders import get_data_transform, RGB_statistics
 
 # Data Loader definiation from Decoupling
-class DecouplingLoader:
+class DecouplingDataLoader:
 
     # Load datasets
     @classmethod
