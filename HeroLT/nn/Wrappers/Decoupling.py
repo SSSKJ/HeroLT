@@ -1,6 +1,6 @@
 from HeroLT.utils import source_import
 from HeroLT.nn.Wrappers import CVModel
-from HeroLT.nn.Dataloaders import DecouplingLoader
+from HeroLT.nn.Dataloaders import DecouplingDataLoader
 from HeroLT.nn.Samplers import ClassAwareSampler
 from HeroLT.utils import torch2numpy, mic_acc_cal, get_priority
 
@@ -66,7 +66,7 @@ class Decoupling(CVModel):
             splits = ['train', 'train_plain', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            self.__training_data = {x: DecouplingLoader.load_data(data_root = f'{self.base_dir}/datasets/{dataset}',
+            self.__training_data = {x: DecouplingDataLoader.load_data(data_root = f'{self.base_dir}/datasets/{dataset}',
                                             dataset = dataset, 
                                             phase = x, 
                                             batch_size = training_opt['batch_size'],
@@ -98,7 +98,7 @@ class Decoupling(CVModel):
 
             splits.append('train_plain')
 
-            data = {x: DecouplingLoader.load_data(data_root = f'{self.base_dir}/datasets/{dataset}',
+            data = {x: DecouplingDataLoader.load_data(data_root = f'{self.base_dir}/datasets/{dataset}',
                                             dataset = dataset, 
                                             phase = x,
                                             batch_size = training_opt['batch_size'],
