@@ -154,7 +154,7 @@ class BALMS(CVModel):
 
         if self.__training_data is None:
 
-            self.load_data(train = True)
+            self.load_data(test_mode = False)
 
         self.data = self.__training_data
 
@@ -320,7 +320,9 @@ class BALMS(CVModel):
 
     def load_data(
             self,
-            force: bool = False):
+            force: bool = False,
+            test_mode: bool = None
+            ):
 
         super().load_data()
 
@@ -329,7 +331,11 @@ class BALMS(CVModel):
 
         dataset = self.dataset_name.lower()
 
-        if not self.test_mode:
+        if test_mode is None:
+
+            test_mode = self.test_mode
+
+        if not test_mode:
 
             if self.__training_data is not None and not force:
 

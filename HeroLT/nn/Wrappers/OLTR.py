@@ -92,7 +92,7 @@ class OLTR(BaseModel):
 
         if self.__training_data is None:
 
-            self.load_data(train = True)
+            self.load_data(test_mode = False)
 
         self.data = self.__training_data
 
@@ -242,6 +242,7 @@ class OLTR(BaseModel):
             self,
             phase: str,
             force: bool = False,
+            test_mode: bool = None,
             ):
         
         super().load_data()
@@ -252,7 +253,12 @@ class OLTR(BaseModel):
         dataset = self.dataset_name.lower()
         relatin_opt = eval(f'self.{phase}_config')['memory']
 
-        if not self.test_mode:
+        
+        if test_mode is None:
+
+            test_mode = self.test_mode
+
+        if not test_mode:
 
             if self.__training_data is not None and not force:
 
