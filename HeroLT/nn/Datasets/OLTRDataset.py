@@ -19,7 +19,8 @@ from torch import default_generator, randperm
 from torch._utils import _accumulate
 from torch.utils.data._typing import _DataPipeMeta
 
-from ... import Generator, Tensor
+from torch import Tensor
+from torch._C import Generator
 
 T_co = TypeVar('T_co', covariant=True)
 T = TypeVar('T')
