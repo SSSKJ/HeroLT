@@ -25,20 +25,32 @@ class BaseModel:
         self.__testing_data = None
         self.__model = None
 
-        special_mkdir(f'{base_dir}/data/', self.dataset_name)
-        special_mkdir(f'{base_dir}/outputs/', self.dataset_name)
+        special_mkdir(f'{base_dir}/outputs/', self.model_name)
+        special_mkdir(f'{base_dir}/outputs/{self.model_name}/', self.dataset_name)
 
     def load_config(self):
 
-        config_path = f'{self.base_dir}/configs/{self.model_name}/config.yaml'
+        config_path = ''
+        if os.path.exists(f'{self.base_dir}/configs/{self.model_name}/config.yaml'):
+            config_path = f'{self.base_dir}/configs/{self.model_name}/config.yaml'
+        elif os.path.exists(f'{self.base_dir}/configs/{self.model_name}/{self.dataset_name}/config.yaml'):
+            config = f'{self.base_dir}/configs/{self.model_name}/{self.dataset_name}/config.yaml'
+        else:
+            raise RuntimeError(f'Can not find any configuration files')
+        
         with open(config_path) as f:
             self.config = yaml.load(f, Loader = yaml.FullLoader)
 
     def load_data(self):
         
-        files = os.listdir(f'{self.base_dir}/data')
+        files = list(os.listdir(f'{self.base_dir}/data'))
+        files += list(os.listdir(f'{self.base_dir}/data/GraphData/'))
+        if os.path.exists(f'{self.base_dir}/data/{self.model_name}/'):
+            files += list(os.listdir(f'{self.base_dir}/data/{self.model_name}/'))
 
         if self.dataset_name not in files:
+
+            
             ## download and unzip, move files into the right place
             print(f'Download dataset {self.dataset_name}')
         
