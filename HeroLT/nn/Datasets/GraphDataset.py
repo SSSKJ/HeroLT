@@ -27,22 +27,27 @@ def decide_config(root, dataset):
     dataset = dataset.lower()
     if dataset == 'cora_full':
         dataset = "cora"
+        root = osp.join(root, "cora-full")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": CitationFull, "src": "pyg"}
     elif dataset == "email":
         dataset = "Email"
+        root = osp.join(root, "email")
         params = {"kwargs": {"root": root},
                   "name": dataset, "class": Email, "src": "pyg"}
     elif dataset == "amz_cloth":
         dataset = "Amazon_clothing"
+        root = osp.join(root, "amazon-clothing")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": DataGPN, "src": "pyg"}
     elif dataset == "amz_eletronics":
         dataset = "Amazon_eletronics"
+        root = osp.join(root, "amazon-eletronics")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": DataGPN, "src": "pyg"}
     elif dataset == "wiki":
         dataset = "Wiki"
+        root = osp.join(root, "wiki")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": "wiki", "class": AttributedGraphDataset, "src": "pyg"}
     else:
