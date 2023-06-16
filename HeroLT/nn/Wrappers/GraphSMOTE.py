@@ -1,8 +1,8 @@
-from HeroLT.nn.Wrappers import BaseModel
-from HeroLT.nn.Dataloaders import GraphDataLoader
-from HeroLT.nn.Models import graphSMOTE
-from HeroLT.utils.logger import get_logger
-from HeroLT.utils import seed_everything, performance_measure, classification, confusion
+from . import BaseModel
+from ..Dataloaders import GraphDataLoader
+from ..Models import graphSMOTE
+from ...utils.logger import get_logger
+from ...utils import seed_everything, performance_measure, classification, confusion
 
 import torch.optim as optim
 

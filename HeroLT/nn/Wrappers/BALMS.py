@@ -26,7 +26,8 @@ class BALMS(CVModel):
         super().__init__(
             model_name = 'BALM',
             dataset_name = dataset,
-            base_dir = base_dir)
+            base_dir = base_dir,
+            test_mode = test_mode)
         
         super().load_config()
 
