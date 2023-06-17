@@ -143,5 +143,5 @@ class GraphDataLoader:
     
     def LTE4G_data_preprocessor(self):
 
-        return self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test
+        return self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test, self.class_num_mat
     
