@@ -179,7 +179,7 @@ class ImGAGN(BaseModel):
                     max_idx = val_bacc.index(max(val_bacc))
                     if bacc_val > best_val_bacc:
                         best_val_bacc = bacc_val
-                        output, output_gen, output_AUC = self.model(features, adj)
+                        output, output_gen, output_AUC = self.model(features_new, adj)
                         acc_tmp, bacc_tmp, precision_tmp, recall_tmp, map_tmp = performance_measure(output[idx_test], labels[idx_test], pre='valid')
                         acc_test = acc_tmp
                         bacc_test = bacc_tmp
@@ -188,7 +188,7 @@ class ImGAGN(BaseModel):
                         map_test = map_tmp
                         best_test_result = [acc_test, bacc_test, precision_test, recall_test, map_test]
 
-                st = "[seed {}][{}][Epoch {}]".format(seed, self.config['embedder'], epoch_gen)
+                st = "[seed {}][{}][Epoch {}]".format(seed, 'ImGAGN', epoch_gen)
                 st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(acc_val, bacc_val, precision_val, recall_val, map_val)
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test)
                 st += "  [*Best Test Result*][Epoch {}] ACC: {:.1f},  bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(
