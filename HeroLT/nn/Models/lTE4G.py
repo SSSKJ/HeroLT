@@ -1,4 +1,7 @@
-from ..Models import GNN_Encoder, GNN_Classifier, GraphSMOTE_Decoder, MLP
+from ..Models.GNN_Classifier import Classifier
+from ..Models.GNN_Encoder import Encoder
+from ..Models.GraphSMOTE_Decoder import Decoder
+from ..Models import MLP
 from ...utils import adj_mse_loss
 
 import torch
@@ -11,18 +14,18 @@ class lTE4G(nn.Module):
         self.config = config
         self.expert_dict = {}
 
-        self.encoder = GNN_Encoder(layer = config['layer'], nfeat = config['nfeat'], nhid = config['nhid'], nhead = config['nhead'], dropout = config['dropout'], adj = adj)
+        self.encoder = Encoder(layer = config['layer'], nfeat = config['nfeat'], nhid = config['nhid'], nhead = config['nhead'], dropout = config['dropout'], adj = adj)
         if self.config['cls_og'] == 'GNN': # 'Cora', 'CiteSeer'
-            self.classifier_og = GNN_Classifier(layer = config['layer'], nhid = config['nhid'], nclass = config['nclass'], nhead = config['nhead'], dropout = config['dropout'], adj = adj)
+            self.classifier_og = Classifier(layer = config['layer'], nhid = config['nhid'], nclass = config['nclass'], nhead = config['nhead'], dropout = config['dropout'], adj = adj)
         elif self.config['cls_og'] == 'MLP': # 'cora_full'
             self.classifier_og = MLP(nhid = config['nhid'], nclass=config['nclass'])
         
         for sep in ['HH', 'H', 'TH', 'T']:
             num_class = config['sep_point'] if sep[0] == 'H' else config['nclass'] - config['sep_point']
-            self.expert_dict[sep] = GNN_Classifier(layer = config['layer'], nhid = config['nhid'], nclass = num_class, nhead = config['nhead'], dropout = config['dropout'], adj=adj)
+            self.expert_dict[sep] = Classifier(layer = config['layer'], nhid = config['nhid'], nclass = num_class, nhead = config['nhead'], dropout = config['dropout'], adj=adj)
         
         if self.config['rec']:
-            self.decoder = GraphSMOTE_Decoder(nhid=config['nhid'], dropout=config['dropout'])
+            self.decoder = Decoder(nhid=config['nhid'], dropout=config['dropout'])
 
     def forward(self, features, adj=None, labels=None, idx_train=None, classifier=None, embed=None, sep=None, teacher=None, pretrain=False, weight=None, is_og=False, is_expert=False, is_student=False):
         if embed == None:
