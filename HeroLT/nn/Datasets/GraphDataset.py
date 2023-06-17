@@ -25,34 +25,34 @@ def decide_config(root, dataset):
     :return: A modified root dir, the name of the dataset class, and parameters associated to the class
     """
     dataset = dataset.lower()
-    if dataset == 'cora_full':
-        dataset = "cora"
+    if dataset == 'cora-full':
+        dataset = "cora-full"
         root = osp.join(root, "cora-full")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": CitationFull, "src": "pyg"}
     elif dataset == "email":
-        dataset = "Email"
+        dataset = "email"
         root = osp.join(root, "email")
         params = {"kwargs": {"root": root},
                   "name": dataset, "class": Email, "src": "pyg"}
-    elif dataset == "amz_cloth":
-        dataset = "Amazon_clothing"
+    elif dataset == "amazon-clothing":
+        dataset = "amazon-clothing"
         root = osp.join(root, "amazon-clothing")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": DataGPN, "src": "pyg"}
-    elif dataset == "amz_eletronics":
-        dataset = "Amazon_eletronics"
+    elif dataset == "amazon-eletronics":
+        dataset = "amazon-eletronics"
         root = osp.join(root, "amazon-eletronics")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": dataset, "class": DataGPN, "src": "pyg"}
     elif dataset == "wiki":
-        dataset = "Wiki"
+        dataset = "wiki"
         root = osp.join(root, "wiki")
         params = {"kwargs": {"root": root, "name": dataset},
                   "name": "wiki", "class": AttributedGraphDataset, "src": "pyg"}
     else:
         raise Exception(
-            f"Unknown dataset name {dataset}, name has to be one of the following 'cora', 'citeseer', 'pubmed', 'photo', 'computers', 'cs', 'physics', 'actor'")
+            f"Unknown dataset name {dataset}, name has to be one of the following 'cora-full', 'email', 'wiki', 'amazon-clothing', 'amazon-eletronics'")
     return params
 
 
