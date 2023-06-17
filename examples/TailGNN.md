@@ -1,9 +1,7 @@
-1. 配置对应的配置文件到HeroLT/configs/TailGNN/config.yaml下
-
-2. 将数据集放置到HeroLT/data/GraphData/下，如HeroLT/data/GraphData/email
-
-3. 运行以下语句进行复现, 其中数据集名称包含cora-full, email, wiki, amazon-clothing, amazon-electronics
-
+1. Configure the corresponding configuration under `HeroLT/configs/TailGNN/config.yaml`
+2. Download dataset and put it under `HeroLT/data/`, e.g., `HeroLT/data/wiki`.
+We now support the following dataset: email, wiki, [cora-full](https://github.com/Leo-Q-316/ImGAGN/tree/main/dataset/cora), [amazon-clothing](https://github.com/kaize0409/GPN_Graph-Few-shot/tree/master/few_shot_data), [amazon-eletronics](https://github.com/kaize0409/GPN_Graph-Few-shot/tree/master/few_shot_data).
+3. Run the following code to reproduce.
    ```python
    import sys
    sys.path.append('../')  
@@ -11,5 +9,4 @@
    model = TailGNN('email', '../HeroLT/')
    model.train()
    ```
-   
-4. 等待实现读取以及保存预训练模型
+4. Print the results and save the pre-trained model if applicable.
