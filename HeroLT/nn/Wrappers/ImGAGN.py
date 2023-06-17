@@ -188,7 +188,7 @@ class ImGAGN(BaseModel):
                         map_test = map_tmp
                         best_test_result = [acc_test, bacc_test, precision_test, recall_test, map_test]
 
-                st = "[seed {}][{}][Epoch {}]".format(seed, 'ImGAGN', epoch_gen)
+                st = "[seed {}][{}][Epoch {}]".format(seed, self.model_name, epoch_gen)
                 st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(acc_val, bacc_val, precision_val, recall_val, map_val)
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test)
                 st += "  [*Best Test Result*][Epoch {}] ACC: {:.1f},  bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(

@@ -305,7 +305,7 @@ class LTE4G(BaseModel):
                     test_results.append([acc_test, bacc_test, precision_test, recall_test, map_test])
                     best_test_result = test_results[max_idx]
 
-                    st = "[seed {}][{}][Expert-{}][Epoch {}]".format(seed, self.args.embedder, sep, epoch)
+                    st = "[seed {}][{}][Expert-{}][Epoch {}]".format(seed, self.model_name, sep, epoch)
                     st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(
                         acc_val, bacc_val, precision_val, recall_val, map_val)
                     st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(
