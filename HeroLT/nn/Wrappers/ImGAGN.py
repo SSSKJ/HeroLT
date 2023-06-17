@@ -96,9 +96,9 @@ class ImGAGN(BaseModel):
             self.model.to(device)
             features = self.features.to(device)
             adj = self.adj.to(device)
-            labels = labels.to(device)
-            idx_temp = idx_temp.to(device)
-            idx_test = idx_test.to(device)
+            labels = self.labels.to(device)
+            idx_temp = self.idx_temp.to(device)
+            idx_test = self.idx_test.to(device)
             self.model_generator.to(device)
 
             for epoch_gen in range(self.config['epochs_gen']):
@@ -217,7 +217,7 @@ class ImGAGN(BaseModel):
         self.logger.info(self.config)
         self.logger.info("Total time elapsed: {:.4f}s".format(time.time() - t_total))
     
-    def __add_edges(adj_real, adj_new):
+    def __add_edges(self, adj_real, adj_new):
 
         adj = adj_real + adj_new
         adj = adj + adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
@@ -225,7 +225,7 @@ class ImGAGN(BaseModel):
         adj = sparse_mx_to_torch_sparse_tensor(adj)
         return adj
 
-    def __euclidean_dist(x, y):
+    def __euclidean_dist(self, x, y):
         m, n = x.size(0), y.size(0)
         xx = torch.pow(x, 2).sum(1, keepdim=True).expand(m, n)
         yy = torch.pow(y, 2).sum(1, keepdim=True).expand(n, m).t()

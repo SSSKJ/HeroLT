@@ -97,8 +97,8 @@ class GraphDataLoader:
 
         num_minority = minority.shape[0]
         num_majority = majority.shape[0]
-        self.logger.info("Number of majority: ", num_majority)
-        self.logger.info("Number of minority: ", num_minority)
+        self.logger.info("Number of majority: %d" % (num_majority))
+        self.logger.info("Number of minority: %d" % (num_minority))
 
         generate_node = []
         generate_label=[]
