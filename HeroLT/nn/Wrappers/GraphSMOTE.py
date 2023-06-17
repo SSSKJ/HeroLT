@@ -153,8 +153,8 @@ class GraphSMOTE(BaseModel):
                     #                                                                             pre='test')
                     self.logger.info("[Best Test Result] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}".format(best_test_result[0], best_test_result[1], best_test_result[2],
                                                                                                                                 best_test_result[3], best_test_result[4]))
-                    self.logger.info(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
-                    self.logger.info(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    # self.logger.info(classification(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
+                    # self.logger.info(confusion(output[self.idx_test], self.labels[self.idx_test].detach().cpu()))
                     break
 
             seed_result['acc'].append(float(best_test_result[0]))
