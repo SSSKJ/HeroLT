@@ -47,8 +47,8 @@ class GraphDataLoader:
             cls.above_head = above_head
             cls.below_tail = below_tail
 
-            cls.logger.info('Above Head Degree:', above_head)
-            cls.logger.info('Below Tail Degree:', below_tail)
+            cls.logger.info('Above Head Degree: %d' % above_head)
+            cls.logger.info('Below Tail Degree: %d' % below_tail)
             
             cls.idx_train_set = {}
             cls.idx_val_set = {}
