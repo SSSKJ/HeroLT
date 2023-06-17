@@ -35,7 +35,7 @@ class LTE4G(BaseModel):
 
         super().load_data()
 
-        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test, self.class_num_mat) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
+        self.config, (self.features, self.adj, self.labels, self.idx_train, self.idx_val, self.idx_test, self.class_num_mat, self.idx_train_set, self.idx_val_set, self.idx_test_set) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
 
     def __init_model(self):
         
@@ -369,7 +369,7 @@ class LTE4G(BaseModel):
                     test_results.append([acc_test, bacc_test, precision_test, recall_test, map_test])
                     best_test_result = test_results[max_idx]
 
-                    st = "[seed {}][{}][Student-{}][Epoch {}]".format(seed, self.args.embedder, sep, epoch)
+                    st = "[seed {}][{}][Student-{}][Epoch {}]".format(seed, self.model_name, sep, epoch)
                     st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(
                         acc_val, bacc_val, precision_val, recall_val, map_val)
                     st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(
