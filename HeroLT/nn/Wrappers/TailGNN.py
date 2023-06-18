@@ -10,7 +10,9 @@ from torch import nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import os
 import numpy as np
+from copy import deepcopy
 
 class TailGNN(BaseModel):
 
@@ -27,6 +29,10 @@ class TailGNN(BaseModel):
             base_dir = base_dir)
         
         super().load_config()
+        self.model = None
+        self.disc = None
+        self.best_model = None
+        self.best_disc = None
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
 
@@ -41,9 +47,41 @@ class TailGNN(BaseModel):
         self.optimizer_D = optim.Adam(self.disc.parameters(), lr = self.config['lr'], weight_decay = self.config['wd'])
 
     def load_pretrained_model(self):
-        ## todo
-        pass
 
+        if self.model is None or self.disc is None:
+
+            self.__init_model()
+        
+        ###### Load Pre-trained Model #######
+        self.logger.info('Load Pre-trained Model') 
+        self.loaded = True
+
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
+        if os.path.exists(model_path):
+            pretrained_model = torch.load(model_path)
+            self.model.load_state_dict(pretrained_model.state_dict())
+            self.best_model = deepcopy(self.model)
+        else:
+            self.logger.info(f'Can\'t find pretrain model file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load model')
+            self.loaded = False
+
+        disc_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_disc_on_{self.dataset_name}.model'
+        if os.path.exists(disc_path):
+            pretrained_disc = torch.load(disc_path)
+            self.disc.load_state_dict(pretrained_disc.state_dict())
+            self.best_disc = deepcopy(self.disc)
+        else:
+            self.logger.info(f'Can\'t find pretrain discriminator file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load discriminator')
+            self.loaded = False
+
+
+    def save_model(self, model, name):
+
+        ###### Save Model #######
+        self.logger.info('Save Model')
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{name}.model'
+        os.makedirs(f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/', exist_ok=True)
+        torch.save(model, model_path)
     
     def load_data(self):
 
@@ -104,6 +142,13 @@ class TailGNN(BaseModel):
                 if bacc_val > best_val_bacc:
                     best_val_bacc = bacc_val
                     best_test_result = [acc_test, bacc_test, precision_test, recall_test, map_test]
+
+                    self.best_model = deepcopy(self.model)
+                    self.save_model(self.best_model, f'{self.model_name}_best_model_on_{self.dataset_name}')
+
+                    self.best_disc = deepcopy(self.disc)
+                    self.save_model(self.best_disc, f'{self.model_name}_best_disc_on_{self.dataset_name}')
+
                     es = 0
                 else:
                     es += 1
@@ -205,3 +250,10 @@ class TailGNN(BaseModel):
 
         acc_test, bacc_test, precision_test, recall_test, map_test = performance_measure(embed_test[self.idx_test], self.labels[self.idx_test], pre='test')
         return acc_test, bacc_test, precision_test, recall_test, map_test
+    
+    def eval(self):
+
+        self.best_model.eval()
+        _, embed_test, _ = self.best_model(self.features, self.adj, False)
+        acc_test, bacc_test, precision_test, recall_test, map_test = performance_measure(embed_test[self.idx_test], self.labels[self.idx_test], pre='test')
+        self.logger.log("[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test))
