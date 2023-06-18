@@ -54,7 +54,6 @@ class TailGNN(BaseModel):
         
         ###### Load Pre-trained Model #######
         self.logger.info('Load Pre-trained Model') 
-        self.loaded = True
 
         model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
         if os.path.exists(model_path):
@@ -63,7 +62,6 @@ class TailGNN(BaseModel):
             self.best_model = deepcopy(self.model)
         else:
             self.logger.info(f'Can\'t find pretrain model file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load model')
-            self.loaded = False
 
         disc_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_disc_on_{self.dataset_name}.model'
         if os.path.exists(disc_path):
@@ -72,7 +70,6 @@ class TailGNN(BaseModel):
             self.best_disc = deepcopy(self.disc)
         else:
             self.logger.info(f'Can\'t find pretrain discriminator file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load discriminator')
-            self.loaded = False
 
 
     def save_model(self, model, name):
