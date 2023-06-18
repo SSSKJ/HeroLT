@@ -13,8 +13,10 @@ from torch.autograd import Variable
 import numpy as np
 import scipy.sparse as sp
 
+import os
 import time
-## todo: Load Model and Save Model
+from copy import deepcopy
+
 class ImGAGN(BaseModel):
 
     def __init__(
@@ -29,6 +31,10 @@ class ImGAGN(BaseModel):
             base_dir = base_dir)
         
         super().load_config()
+        self.model = None
+        self.generator = None
+        self.best_model = None
+        self.best_generator = None
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
     
     def load_data(self):
@@ -37,10 +43,6 @@ class ImGAGN(BaseModel):
 
         self.config, (self.adj, self.adj_real, self.features, self.labels, self.idx_temp, self.idx_test, self.generate_node, self.minority, self.majority, self.minority_all) = GraphDataLoader.load_data(self.config, self.dataset_name, self.model_name, f'{self.base_dir}/data/GraphData/', self.logger)
 
-    def load_pretrained_model(self):
-        ## todo
-        pass
-
     def __init_model(self):
 
         self.model = GCN(nfeat = self.features.shape[1],
@@ -48,14 +50,48 @@ class ImGAGN(BaseModel):
             nclass = self.labels.max().item() + 1,
             dropout = self.config['dropout'],
             generate_node = self.generate_node,
-            min_node = self.minority)
+            min_node = self.minority).to(self.config['device'])
         
-        self.model_generator = Generator(self.minority_all.shape[0])
+        self.generator = Generator(self.minority_all.shape[0]).to(self.config['device'])
+
+    def load_pretrained_model(self):
+
+        if self.model is None or self.disc is None:
+
+            self.__init_model()
+        
+        ###### Load Pre-trained Model #######
+        self.logger.info('Load Pre-trained Model') 
+
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
+        if os.path.exists(model_path):
+            pretrained_model = torch.load(model_path)
+            self.model.load_state_dict(pretrained_model.state_dict())
+            self.best_model = deepcopy(self.model)
+        else:
+            self.logger.info(f'Can\'t find pretrain model file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load model')
+
+        generator_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_generator_on_{self.dataset_name}.model'
+        if os.path.exists(generator_path):
+            pretrained_generator = torch.load(generator_path)
+            self.generator.load_state_dict(pretrained_generator.state_dict())
+            self.best_generator = deepcopy(self.generator)
+        else:
+            self.logger.info(f'Can\'t find pretrain generator file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load generator')
+
+
+    def save_model(self, model, name):
+
+        ###### Save Model #######
+        self.logger.info('Save Model')
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{name}.model'
+        os.makedirs(f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/', exist_ok=True)
+        torch.save(model, model_path)
         
     def __init_optimizer_and_scheduler(self):
 
         self.optimizer = optim.Adam(self.model.parameters(), lr = self.config['lr'], weight_decay = self.config['wd'])
-        self.optimizer_G = torch.optim.Adam(self.model_generator.parameters(), lr = self.config['lr'], weight_decay = self.config['wd'])
+        self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr = self.config['lr'], weight_decay = self.config['wd'])
 
 
     ## todo: Parallel Training
@@ -99,7 +135,7 @@ class ImGAGN(BaseModel):
             labels = self.labels.to(device)
             idx_temp = self.idx_temp.to(device)
             idx_test = self.idx_test.to(device)
-            self.model_generator.to(device)
+            self.generator.to(device)
 
             for epoch_gen in range(self.config['epochs_gen']):
                 part = epoch_gen % num
@@ -115,12 +151,12 @@ class ImGAGN(BaseModel):
                 num_real = features.shape[0] - len(idx_test) -len(idx_val)
 
                 # Train model
-                self.model_generator.train()
+                self.generator.train()
                 self.optimizer_G.zero_grad()
                 z = Variable(torch.FloatTensor(np.random.normal(0, 1, (self.generate_node.shape[0], 100))))
                 z = z.to(device)
 
-                adj_min = self.model_generator(z)
+                adj_min = self.generator(z)
                 gen_imgs1 = torch.mm(F.softmax(adj_min[:,0:self.minority.shape[0]], dim=1), features[self.minority])
                 gen_imgs1_all = torch.mm(F.softmax(adj_min, dim=1), features[self.minority_all])
 
@@ -188,6 +224,12 @@ class ImGAGN(BaseModel):
                         map_test = map_tmp
                         best_test_result = [acc_test, bacc_test, precision_test, recall_test, map_test]
 
+                        self.best_model = deepcopy(self.model)
+                        self.save_model(self.best_model, f'{self.model_name}_best_model_on_{self.dataset_name}')
+                        
+                        self.best_generator = deepcopy(self.generator)
+                        self.save_model(self.best_generator, f'{self.model_name}_best_generator_on_{self.dataset_name}')
+
                 st = "[seed {}][{}][Epoch {}]".format(seed, self.model_name, epoch_gen)
                 st += "[Val] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}|| ".format(acc_val, bacc_val, precision_val, recall_val, map_val)
                 st += "[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test)
@@ -233,3 +275,30 @@ class ImGAGN(BaseModel):
         dist.addmm_(1, -2, x, y.t())
         dist = dist.clamp(min=1e-12).sqrt()  # for numerical stability
         return dist
+    
+    def eval(self):
+
+        self.best_generator.eval()
+        self.best_model.eval()
+        device = self.config['device']
+        features = self.features.to(device)
+        labels = self.labels.to(device)
+        idx_test = self.idx_test.to(device)
+
+        z = Variable(torch.FloatTensor(np.random.normal(0, 1, (self.generate_node.shape[0], 100))))
+        z = z.to(device)
+        adj_min = self.best_generator(z)
+        gen_imgs1 = torch.mm(F.softmax(adj_min[:,0:self.minority.shape[0]], dim=1), features[self.minority])
+        matr = F.softmax(adj_min[:,0:self.minority.shape[0]], dim =1).data.cpu().numpy()
+        
+        pos=np.where(matr>1/matr.shape[1])
+        adj_temp = sp.coo_matrix((np.ones(pos[0].shape[0]),(self.generate_node[pos[0]].numpy(), self.minority_all[pos[1]].numpy())),
+                                                shape=(labels.shape[0], labels.shape[0]),
+                                                dtype=np.float32)
+        adj_new = self.__add_edges(self.adj_real, adj_temp)
+        adj_new = adj_new.to(device)          
+        features_new = torch.cat((features, gen_imgs1.data.detach()),0)
+        output, output_gen, output_AUC = self.model(features_new, adj_new)
+
+        acc_tmp, bacc_tmp, precision_tmp, recall_tmp, map_tmp = performance_measure(output[idx_test], labels[idx_test], pre='valid')
+        self.logger.log("[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_tmp, bacc_tmp, precision_tmp, recall_tmp, map_tmp))
