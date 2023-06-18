@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
+import os
 from tqdm import trange
 from copy import deepcopy
 import numpy as np
@@ -27,6 +28,8 @@ class LTE4G(BaseModel):
         
 
         super().load_config()
+        self.model = None
+        self.best_model = None
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
         self.loaded = False
 
@@ -43,19 +46,29 @@ class LTE4G(BaseModel):
 
     def load_pretrained_model(self):
 
-        self.loaded = True
-        ## todo: load pretrained model
-        ####### Load Pre-trained Original Imbalance graph #######
-        # self.logger.info('Load Pre-trained Encoder')       
-        # rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
-        # encoder_info = f'cls_{self.config['cls_og']}_cw_{self.config['class_weight']}_gamma_{self.config['gamma']}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
-        # if self.config['im_ratio != 1: # manual
-        #     pretrained_encoder = torch.load(f'./pretrained/manual/{self.config['dataset}/{self.config['im_class_num}/{self.config['im_ratio}/'+encoder_info)
-        # else: # natural
-        #     pretrained_encoder = torch.load(f'./pretrained/natural/{self.config['dataset}/'+encoder_info)
+        if self.model is None or self.disc is None:
 
-        # model.load_state_dict(pretrained_encoder.state_dict())
-        pass
+            self.__init_model()
+        
+        ###### Load Pre-trained Model #######
+        self.logger.info('Load Pre-trained Model') 
+
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
+        if os.path.exists(model_path):
+            pretrained_model = torch.load(model_path)
+            self.model.load_state_dict(pretrained_model.state_dict())
+            self.best_model = deepcopy(self.model)
+            self.loaded = True
+        else:
+            self.logger.info(f'Can\'t find pretrain model file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load model')
+
+    def save_model(self, model, name):
+
+        ###### Save Model #######
+        self.logger.info('Save Model')
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{name}.model'
+        os.makedirs(f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/', exist_ok=True)
+        torch.save(model, model_path)
 
     ## optimizer for pretrained part
     def __init_optimizer_and_scheduler(self):
@@ -109,7 +122,6 @@ class LTE4G(BaseModel):
             if not self.loaded:
                 ####### Pre-train Original Imbalance graph #######
                 self.logger.info('Start Pre-training Encoder')       
-                best_encoder = None
                 self.__init_optimizer_and_scheduler()
 
                 # pretrain encoder & decoder (adopted by GraphSMOTE)
@@ -168,26 +180,16 @@ class LTE4G(BaseModel):
 
                     if best_metric <= bacc_val:
                         best_metric = bacc_val
-                        best_encoder = deepcopy(self.model)
+
+                        self.best_model = deepcopy(self.model)
+                        self.save_model(self.best_model, f'{self.model_name}_best_model_on_{self.dataset_name}')
                     
                     if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                         if epoch - max_idx > self.config['ep_early']:
                             self.logger.info("Early stop")
                         break
 
-                # todo: Save pre-trained encoder
-                # if self.config['save_encoder']:
-                #     self.logger.info('Saved pre-trained Encoder')
-                #     rec_with_ep_pre = 'True_ep_pre_' + str(self.config['ep_pre']) + '_rw_' + str(self.config['rw']) if self.config['rec'] else 'False'
-                #     encoder_info = f'cls_{self.config['cls_og}_cw_{self.config['class_weight}_gamma_{self.config['gamma}_alpha_{self.config['alpha}_lr_{self.config['lr}_dropout_{self.config['dropout}_rec_{rec_with_ep_pre}_seed_{seed}.pkl'
-                #     if self.config['im_ratio'] != 1: # manual
-                #         os.makedirs(f'./pretrained/manual/{self.config['dataset}/{self.config['im_class_num}/{self.config['im_ratio}', exist_ok=True)
-                #         pretrained_encoder = torch.save(best_encoder, f'./pretrained/manual/{self.config['dataset}/{self.config['im_class_num}/{self.config['im_ratio}/'+encoder_info)
-                #     else: # natural
-                #         os.makedirs(f'./pretrained/natural/{self.config['dataset}', exist_ok=True)
-                #         pretrained_encoder = torch.save(best_encoder, f'./pretrained/natural/{self.config['dataset}/'+encoder_info)
-
-                self.model = best_encoder
+                self.model = self.best_model
 
             # ======================================= Head/Tail Separation & Class Prtotypes ======================================= #
             self.model.eval()
