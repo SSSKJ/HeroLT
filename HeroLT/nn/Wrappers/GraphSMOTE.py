@@ -4,10 +4,12 @@ from ..Models import graphSMOTE
 from ...utils.logger import get_logger
 from ...utils import seed_everything, performance_measure, classification, confusion
 
+import torch
 import torch.optim as optim
 
 import numpy as np
 
+import os
 from copy import deepcopy
 
 class GraphSMOTE(BaseModel):
@@ -25,6 +27,8 @@ class GraphSMOTE(BaseModel):
             base_dir = base_dir)
 
         super().load_config()
+        self.model = None
+        self.best_model = None
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
 
@@ -39,9 +43,30 @@ class GraphSMOTE(BaseModel):
         self.model = graphSMOTE(self.config, self.adj).to(self.config['device'])
 
     def load_pretrained_model(self):
-        ## todo
-        pass
 
+        if self.model is None:
+
+            self.__init_model()
+        
+        ###### Load Pre-trained Model #######
+        self.logger.info('Load Pre-trained Model') 
+
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
+        if os.path.exists(model_path):
+            pretrained_model = torch.load(model_path)
+            self.model.load_state_dict(pretrained_model.state_dict())
+            self.best_model = deepcopy(self.model)
+        else:
+            self.logger.info(f'Can\'t find pretrain model file under {model_path} for {self.model_name} on {self.dataset_name}, fail to load model')
+
+    def save_model(self, model, name):
+
+        ###### Save Model #######
+        self.logger.info('Save Model')
+        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{name}.model'
+        os.makedirs(f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/', exist_ok=True)
+        torch.save(model, model_path)
+    
     def __init_optimizer_and_scheduler(self):
         self.optimizer_fe = optim.Adam(self.model.encoder.parameters(), lr=self.config['lr'], weight_decay=self.config['wd'])  # feature extractor
         self.optimizer_ep = optim.Adam(self.model.decoder.parameters(), lr=self.config['lr'], weight_decay=self.config['wd'])  # edge predictor
@@ -122,7 +147,8 @@ class GraphSMOTE(BaseModel):
 
                 if best_metric <= bacc_val:
                     best_metric = bacc_val
-                    best_model = deepcopy(self.model)
+                    self.best_model = deepcopy(self.model)
+                    self.save_model(self.best_model, f'{self.model_name}_best_model_on_{self.dataset_name}')
 
                 # Test
                 acc_test, bacc_test, precision_test, recall_test, map_test= performance_measure(output[self.idx_test], self.labels[self.idx_test], pre='test')
@@ -144,8 +170,8 @@ class GraphSMOTE(BaseModel):
                 if (epoch - max_idx > self.config['ep_early']) or (epoch+1 == self.config['ep']):
                     if epoch - max_idx > self.config['ep_early']:
                         self.logger.info("Early stop")
-                    embed = best_model.encoder(self.features)
-                    output = best_model.classifier(embed)
+                    embed = self.best_model.encoder(self.features)
+                    output = self.best_model.classifier(embed)
                     best_test_result[0], best_test_result[1], best_test_result[2], best_test_result[3], best_test_result[4] = performance_measure(output[self.idx_test], self.labels[self.idx_test], pre='test')
                     # acc_list, macro_F_list, gmean_list, bacc_list = utils.performance_per_class(output[self.idx_test],
                     #                                                                             self.labels[
@@ -181,7 +207,16 @@ class GraphSMOTE(BaseModel):
                                                                                              np.mean(precision), np.std(precision), np.mean(recall),
                                                                                              np.std(recall), np.mean(mAP), np.std(mAP)))
         self.logger.info(self.config)
-        
+
+    def eval(self):
+        self.best_model.eval()
+        embed = self.best_model.encoder(self.features)
+        output = self.best_model.classifier(embed)
+
+        # Test
+        acc_test, bacc_test, precision_test, recall_test, map_test = performance_measure(output[self.idx_test], self.labels[self.idx_test], pre='test')
+        self.logger.log("[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test))
+
 
 
 
