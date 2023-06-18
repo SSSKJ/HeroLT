@@ -209,7 +209,10 @@ class GraphSMOTE(BaseModel):
         self.logger.info(self.config)
 
     def eval(self):
+
         self.best_model.eval()
+        self.features.to(self.config['device'])
+        
         embed = self.best_model.encoder(self.features)
         output = self.best_model.classifier(embed)
 

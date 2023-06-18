@@ -38,8 +38,8 @@ class TailGNN(BaseModel):
 
     def __init_model(self):
 
-        self.model = tailGNN(params = self.config, ver = 1)
-        self.disc = Discriminator(self.config['nclass'])
+        self.model = tailGNN(params = self.config, ver = 1).to(self.config['device'])
+        self.disc = Discriminator(self.config['nclass']).to(self.config['device'])
 
     def __init_optimizer_and_scheduler(self):
 
@@ -251,6 +251,10 @@ class TailGNN(BaseModel):
     def eval(self):
 
         self.best_model.eval()
+        self.features.to(self.config['device'])
+        self.adj.to(self.config['device'])
+
         _, embed_test, _ = self.best_model(self.features, self.adj, False)
+        
         acc_test, bacc_test, precision_test, recall_test, map_test = performance_measure(embed_test[self.idx_test], self.labels[self.idx_test], pre='test')
         self.logger.log("[Test] ACC: {:.1f}, bACC: {:.1f}, Precision: {:.1f}, Recall: {:.1f}, mAP: {:.1f}\n".format(acc_test, bacc_test, precision_test, recall_test, map_test))
