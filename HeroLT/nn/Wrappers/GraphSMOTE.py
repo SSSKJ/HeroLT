@@ -51,7 +51,7 @@ class GraphSMOTE(BaseModel):
         ###### Load Pre-trained Model #######
         self.logger.info('Load Pre-trained Model') 
 
-        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{self.model_name}_best_model_on_{self.dataset_name}.model'
+        model_path = f'{self.output_path}/{self.model_name}_best_model_on_{self.dataset_name}.model'
         if os.path.exists(model_path):
             pretrained_model = torch.load(model_path)
             self.model.load_state_dict(pretrained_model.state_dict())
@@ -63,8 +63,8 @@ class GraphSMOTE(BaseModel):
 
         ###### Save Model #######
         self.logger.info('Save Model')
-        model_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/{name}.model'
-        os.makedirs(f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/', exist_ok=True)
+        model_path = f'{self.output_path}/{name}.model'
+        os.makedirs(self.output_path, exist_ok=True)
         torch.save(model, model_path)
     
     def __init_optimizer_and_scheduler(self):
