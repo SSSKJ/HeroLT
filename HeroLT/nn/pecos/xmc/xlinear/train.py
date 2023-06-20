@@ -14,12 +14,12 @@ import sys
 import json
 import logging
 
-from pecos.core import XLINEAR_SOLVERS
-from pecos.utils import cli
-from pecos.utils import smat_util, logging_util
-from pecos.utils.cluster_util import ClusterChain
-from pecos.xmc import Indexer, LabelEmbeddingFactory, PostProcessor
-from pecos.xmc.base import HierarchicalKMeans
+from ....pecos.core import XLINEAR_SOLVERS
+from ....pecos.utils import cli
+from ....pecos.utils import smat_util, logging_util
+from ....pecos.utils.cluster_util import ClusterChain
+from ....pecos.xmc import Indexer, LabelEmbeddingFactory, PostProcessor
+from ....pecos.xmc.base import HierarchicalKMeans
 
 from .model import XLinearModel
 

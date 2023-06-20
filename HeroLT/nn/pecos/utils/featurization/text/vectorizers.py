@@ -15,7 +15,7 @@ import pickle
 from abc import ABCMeta
 
 import numpy as np
-from pecos.core import clib
+from .....pecos.core import clib
 from sklearn.feature_extraction.text import HashingVectorizer, TfidfVectorizer
 
 

@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pecos.xmc import MLModel
+from ....pecos.xmc import MLModel
 from transformers import (
     BertConfig,
     BertModel,

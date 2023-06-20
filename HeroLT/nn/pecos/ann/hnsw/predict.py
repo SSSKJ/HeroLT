@@ -11,7 +11,8 @@
 import argparse
 import os
 import numpy as np
-from pecos.utils import smat_util
+
+from ....pecos.utils import smat_util
 from .model import HNSW
 
 

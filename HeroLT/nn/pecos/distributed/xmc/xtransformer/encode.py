@@ -17,8 +17,8 @@ import torch
 import logging
 import itertools
 
-from pecos.utils import smat_util, logging_util
-from pecos.xmc.xtransformer.model import XTransformer
+from .....pecos.utils import smat_util, logging_util
+from .....pecos.xmc.xtransformer.model import XTransformer
 
 LOGGER = logging.getLogger(__name__)
 

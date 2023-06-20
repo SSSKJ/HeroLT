@@ -11,15 +11,15 @@
 import logging
 import numpy as np
 import dataclasses as dc
-import pecos
-from pecos.xmc.xlinear.model import XLinearModel
-from pecos.utils import smat_util
-from pecos.xmc import MLModel, HierarchicalMLModel
+from ..... import pecos
+from .....pecos.xmc.xlinear.model import XLinearModel
+from .....pecos.utils import smat_util
+from .....pecos.xmc import MLModel, HierarchicalMLModel
 from scipy.sparse import csr_matrix, csc_matrix
 from typing import ClassVar
-from pecos.distributed.comm.abs_dist_comm import DistComm
-from pecos.utils.profile_util import MemInfo
-from pecos.distributed.xmc.base import DistClusterChain, DistClustering
+from .....pecos.distributed.comm.abs_dist_comm import DistComm
+from .....pecos.utils.profile_util import MemInfo
+from .....pecos.distributed.xmc.base import DistClusterChain, DistClustering
 
 LOGGER = logging.getLogger(__name__)
 

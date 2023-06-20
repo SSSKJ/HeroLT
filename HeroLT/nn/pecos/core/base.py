@@ -32,9 +32,10 @@ from glob import glob
 from subprocess import check_output
 
 import numpy as np
-import pecos
 import scipy.sparse as smat
-from pecos.utils import smat_util
+
+from ... import pecos
+from ...pecos.utils import smat_util
 
 LOGGER = logging.getLogger("__name__")
 

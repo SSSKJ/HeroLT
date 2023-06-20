@@ -23,10 +23,10 @@ import dataclasses as dc
 import numpy as np
 import scipy.sparse as smat
 
-import pecos
-from pecos.utils import smat_util
-from pecos.core import ScipyCsrF32, ScipyDrmF32
-from pecos.core import clib as pecos_clib
+from .... import pecos
+from ....pecos.utils import smat_util
+from ....pecos.core import ScipyCsrF32, ScipyDrmF32
+from ....pecos.core import clib as pecos_clib
 
 
 class HNSW(pecos.BaseClass):

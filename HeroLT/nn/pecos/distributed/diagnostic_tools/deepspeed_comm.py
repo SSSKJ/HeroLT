@@ -20,8 +20,8 @@ import torch.nn.functional as F
 import logging
 import socket
 import signal
-from pecos.utils import logging_util
-from pecos.distributed.xmc.xtransformer.module import DeepSpeedUtils
+from ....pecos.utils import logging_util
+from ....pecos.distributed.xmc.xtransformer.module import DeepSpeedUtils
 
 logging.getLogger(torch.__name__).setLevel(logging.WARNING)
 logging.getLogger("DeepSpeed").setLevel(logging.WARNING)

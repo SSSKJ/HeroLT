@@ -14,7 +14,7 @@ import os
 import torch
 import logging
 
-from pecos.xmc.xtransformer.matcher import TransformerMatcher
+from .....pecos.xmc.xtransformer.matcher import TransformerMatcher
 
 LOGGER = logging.getLogger(__name__)
 

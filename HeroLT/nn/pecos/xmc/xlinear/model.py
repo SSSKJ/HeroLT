@@ -14,11 +14,11 @@ from os import path
 
 import dataclasses as dc
 import numpy as np
-import pecos
+from .... import pecos
 import scipy.sparse as smat
-from pecos.utils import smat_util
-from pecos.utils.cluster_util import ClusterChain
-from pecos.xmc import HierarchicalMLModel, MLModel, MLProblem
+from ....pecos.utils import smat_util
+from ....pecos.utils.cluster_util import ClusterChain
+from ....pecos.xmc import HierarchicalMLModel, MLModel, MLProblem
 
 
 class XLinearModel(pecos.BaseClass):
@@ -278,7 +278,7 @@ class XLinearModel(pecos.BaseClass):
             train_params=train_params.hlm_args,
             pred_params=pred_params.hlm_args,
             **kwargs,
-        )
+        ) # todo: logger
         return cls(model)
 
     def set_output_constraint(self, labels_to_keep):

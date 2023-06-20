@@ -19,7 +19,7 @@ from os import path
 
 import dataclasses as dc
 import numpy as np
-import pecos
+from ... import pecos
 import scipy.sparse as smat
 from pecos.core import (
     ScipyCompressedSparseAllocator,
@@ -29,8 +29,8 @@ from pecos.core import (
     clib,
     XLINEAR_INFERENCE_MODEL_TYPES,
 )
-from pecos.utils import smat_util
-from pecos.utils.cluster_util import ClusterChain
+from ...pecos.utils import smat_util
+from ...pecos.utils.cluster_util import ClusterChain
 from sklearn.preprocessing import normalize
 
 LOGGER = logging.getLogger(__name__)

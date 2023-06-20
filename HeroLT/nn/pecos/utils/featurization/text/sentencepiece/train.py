@@ -10,7 +10,7 @@
 #  and limitations under the License.
 import argparse
 
-from pecos.utils import cli
+from ......pecos.utils import cli
 
 from .model import SentencePieceModel
 

@@ -12,7 +12,7 @@
 
 import argparse
 
-from pecos.utils import smat_util
+from ....pecos.utils import smat_util
 
 
 def parse_arguments():

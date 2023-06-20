@@ -18,15 +18,15 @@ import tempfile
 import numpy as np
 import scipy.sparse as smat
 import dataclasses as dc
-import pecos
-from pecos.core import clib
-from pecos.utils.cluster_util import ClusterChain
-from pecos.xmc.base import HierarchicalMLModel
-from pecos.xmc.xtransformer.model import XTransformer
+from ..... import pecos
+from .....pecos.core import clib
+from .....pecos.utils.cluster_util import ClusterChain
+from .....pecos.xmc.base import HierarchicalMLModel
+from .....pecos.xmc.xtransformer.model import XTransformer
 
-from pecos.xmc.xtransformer.matcher import TransformerMatcher
-from pecos.xmc.xtransformer.module import MLProblemWithText
-from pecos.xmc.xtransformer.network import TransformerLinearXMCHead
+from .....pecos.xmc.xtransformer.matcher import TransformerMatcher
+from .....pecos.xmc.xtransformer.module import MLProblemWithText
+from .....pecos.xmc.xtransformer.network import TransformerLinearXMCHead
 from . import dist_trainer
 from .module import DeepSpeedUtils as ds_utils
 

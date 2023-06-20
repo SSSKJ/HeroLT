@@ -10,8 +10,8 @@
 #  and limitations under the License.
 import argparse
 
-from pecos.utils import smat_util
-from pecos.xmc import PostProcessor
+from ....pecos.utils import smat_util
+from ....pecos.xmc import PostProcessor
 
 from .model import XLinearModel
 

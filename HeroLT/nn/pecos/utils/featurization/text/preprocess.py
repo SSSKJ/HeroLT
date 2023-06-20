@@ -15,9 +15,9 @@ import os
 
 import numpy as np
 import scipy.sparse as smat
-from pecos.utils import smat_util
-from pecos.utils.cli import SubCommand, str2bool
-from pecos.utils.featurization.text.vectorizers import Vectorizer, vectorizer_dict
+from .....pecos.utils import smat_util
+from .....pecos.utils.cli import SubCommand, str2bool
+from .....pecos.utils.featurization.text.vectorizers import Vectorizer, vectorizer_dict
 
 
 class Preprocessor(object):

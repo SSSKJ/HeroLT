@@ -17,13 +17,13 @@ import time
 
 import dataclasses as dc
 import numpy as np
-import pecos
+from .... import pecos
 import scipy.sparse as smat
 import torch
 import transformers
-from pecos.core import clib
-from pecos.utils import smat_util, torch_util
-from pecos.xmc import MLModel, MLProblem, PostProcessor
+from ....pecos.core import clib
+from ....pecos.utils import smat_util, torch_util
+from ....pecos.xmc import MLModel, MLProblem, PostProcessor
 from sklearn.preprocessing import normalize as sk_normalize
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from transformers import AdamW, AutoConfig, get_scheduler, BatchEncoding

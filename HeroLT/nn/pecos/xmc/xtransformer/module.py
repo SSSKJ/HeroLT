@@ -14,7 +14,7 @@ import json
 import numpy as np
 import torch
 import scipy.sparse as smat
-from pecos.utils import smat_util
+from ....pecos.utils import smat_util
 from torch.utils.data import Dataset
 from transformers import BatchEncoding
 

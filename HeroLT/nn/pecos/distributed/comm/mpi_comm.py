@@ -9,7 +9,7 @@
 #  OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions
 #  and limitations under the License.
 from mpi4py import MPI
-from pecos.distributed.comm.abs_dist_comm import DistComm
+from ....pecos.distributed.comm.abs_dist_comm import DistComm
 
 
 MPI_COMM = MPI.COMM_WORLD

@@ -14,8 +14,8 @@ import os
 
 import numpy as np
 import scipy.sparse as smat
-from pecos.utils import smat_util
-from pecos.core import clib
+from ...pecos.utils import smat_util
+from ...pecos.core import clib
 from sklearn.preprocessing import normalize as sk_normalize
 
 LOGGER = logging.getLogger(__name__)

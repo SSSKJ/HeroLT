@@ -18,13 +18,13 @@ import tempfile
 from os import makedirs, path
 
 import numpy as np
-import pecos
-from pecos.utils import smat_util
-from pecos.utils.cluster_util import ClusterChain
-from pecos.utils.featurization.text.preprocess import Preprocessor
-from pecos.xmc import Indexer, LabelEmbeddingFactory
-from pecos.xmc.xlinear import XLinearModel
-from pecos.xmc.base import HierarchicalKMeans
+from .... import pecos
+from ....pecos.utils import smat_util
+from ....pecos.utils.cluster_util import ClusterChain
+from ....pecos.utils.featurization.text.preprocess import Preprocessor
+from ....pecos.xmc import Indexer, LabelEmbeddingFactory
+from ....pecos.xmc.xlinear import XLinearModel
+from ....pecos.xmc.base import HierarchicalKMeans
 
 LOGGER = logging.getLogger(__name__)
 

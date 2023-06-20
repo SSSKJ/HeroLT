@@ -13,10 +13,10 @@ import logging
 import sys
 import json
 
-from pecos.core import XLINEAR_SOLVERS
-from pecos.utils import cli, logging_util
-from pecos.utils.featurization.text.vectorizers import Vectorizer
-from pecos.xmc import PostProcessor
+from ....pecos.core import XLINEAR_SOLVERS
+from ....pecos.utils import cli, logging_util
+from ....pecos.utils.featurization.text.vectorizers import Vectorizer
+from ....pecos.xmc import PostProcessor
 
 from .model import Text2Text
 

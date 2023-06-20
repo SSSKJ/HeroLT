@@ -12,7 +12,7 @@ import argparse
 import itertools
 import sys
 
-from pecos.xmc import PostProcessor
+from ....pecos.xmc import PostProcessor
 
 from .model import Text2Text
 

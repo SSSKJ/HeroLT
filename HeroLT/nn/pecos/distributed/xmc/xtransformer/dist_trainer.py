@@ -22,9 +22,9 @@ import random
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader, RandomSampler, TensorDataset
 
-from pecos.utils import cli, logging_util
-from pecos.xmc.xtransformer.matcher import TransformerMatcher
-from pecos.xmc.xtransformer.module import XMCTextDataset
+from .....pecos.utils import cli, logging_util
+from .....pecos.xmc.xtransformer.matcher import TransformerMatcher
+from .....pecos.xmc.xtransformer.module import XMCTextDataset
 
 from .module import AllInOneForXMCModel, DeepSpeedUtils
 

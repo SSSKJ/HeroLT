@@ -12,9 +12,9 @@ import argparse
 import logging
 import os
 
-from pecos.utils import cli, logging_util, smat_util, torch_util
-from pecos.utils.featurization.text.preprocess import Preprocessor
-from pecos.xmc import PostProcessor
+from ....pecos.utils import cli, logging_util, smat_util, torch_util
+from ....pecos.utils.featurization.text.preprocess import Preprocessor
+from ....pecos.xmc import PostProcessor
 
 from .model import XTransformer
 

@@ -13,14 +13,14 @@ import logging
 import os
 
 import numpy as np
-from pecos.utils import cli, logging_util, smat_util, torch_util
-from pecos.utils.cluster_util import ClusterChain
+from .....pecos.utils import cli, logging_util, smat_util, torch_util
+from .....pecos.utils.cluster_util import ClusterChain
 
-from pecos.utils.featurization.text.preprocess import Preprocessor
-from pecos.xmc.xtransformer.model import XTransformer
-from pecos.xmc.xtransformer.module import MLProblemWithText
-from pecos.xmc.xtransformer.train import parse_arguments
-from pecos.distributed.diagnostic_tools import deepspeed_comm as ds_diagnose
+from .....pecos.utils.featurization.text.preprocess import Preprocessor
+from .....pecos.xmc.xtransformer.model import XTransformer
+from .....pecos.xmc.xtransformer.module import MLProblemWithText
+from .....pecos.xmc.xtransformer.train import parse_arguments
+from .....pecos.distributed.diagnostic_tools import deepspeed_comm as ds_diagnose
 from .model import XTransformerDistTrainer
 from .module import DeepSpeedUtils as ds_utils
 

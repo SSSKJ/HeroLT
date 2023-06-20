@@ -16,10 +16,10 @@ import sys
 import gc
 
 import numpy as np
-from pecos.utils import cli, logging_util, smat_util, torch_util
-from pecos.utils.cluster_util import ClusterChain
-from pecos.utils.featurization.text.preprocess import Preprocessor
-from pecos.xmc import PostProcessor, Indexer, LabelEmbeddingFactory
+from ....pecos.utils import cli, logging_util, smat_util, torch_util
+from ....pecos.utils.cluster_util import ClusterChain
+from ....pecos.utils.featurization.text.preprocess import Preprocessor
+from ....pecos.xmc import PostProcessor, Indexer, LabelEmbeddingFactory
 
 from .matcher import TransformerMatcher
 from .model import XTransformer

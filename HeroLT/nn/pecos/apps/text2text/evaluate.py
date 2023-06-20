@@ -14,7 +14,8 @@ import argparse
 import json
 
 import scipy.sparse as smat
-from pecos.utils import smat_util
+
+from ....pecos.utils import smat_util
 
 
 def parse_arguments():

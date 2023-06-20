@@ -12,15 +12,15 @@ import logging
 import numpy as np
 import dataclasses as dc
 import itertools
-import pecos
-from pecos.utils import smat_util
-from pecos.xmc import Indexer, LabelEmbeddingFactory
-from pecos.xmc.base import HierarchicalKMeans
-from pecos.core import clib
-from pecos.utils.cluster_util import ClusterChain
+from .... import pecos
+from ....pecos.utils import smat_util
+from ....pecos.xmc import Indexer, LabelEmbeddingFactory
+from ....pecos.xmc.base import HierarchicalKMeans
+from ....pecos.core import clib
+from ....pecos.utils.cluster_util import ClusterChain
 from scipy.sparse import csr_matrix, csc_matrix
-from pecos.distributed.comm.abs_dist_comm import DistComm
-from pecos.utils.profile_util import MemInfo
+from ....pecos.distributed.comm.abs_dist_comm import DistComm
+from ....pecos.utils.profile_util import MemInfo
 import math
 from copy import deepcopy
 

@@ -10,13 +10,13 @@
 #  and limitations under the License.
 import logging
 import json
-from pecos.distributed.xmc.base import DistClustering
-from pecos.distributed.xmc.xlinear.model import DistributedCPUXLinearModel as DistXLM
-from pecos.distributed.comm.mpi_comm import MPIComm
-from pecos.utils import logging_util
-from pecos.utils.profile_util import MemInfo
-from pecos.xmc.xlinear.model import XLinearModel
-from pecos.xmc.xlinear.train import parse_arguments
+from .....pecos.distributed.xmc.base import DistClustering
+from .....pecos.distributed.xmc.xlinear.model import DistributedCPUXLinearModel as DistXLM
+from .....pecos.distributed.comm.mpi_comm import MPIComm
+from .....pecos.utils import logging_util
+from .....pecos.utils.profile_util import MemInfo
+from .....pecos.xmc.xlinear.model import XLinearModel
+from .....pecos.xmc.xlinear.train import parse_arguments
 
 
 LOGGER = logging.getLogger(__name__)

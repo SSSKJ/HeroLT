@@ -15,13 +15,13 @@ from copy import deepcopy
 import tempfile
 
 import dataclasses as dc
-import pecos
-from pecos.core import clib
-from pecos.utils import smat_util, torch_util
-from pecos.utils.cluster_util import ClusterChain
-from pecos.xmc import Indexer, LabelEmbeddingFactory
-from pecos.xmc.base import HierarchicalMLModel, HierarchicalKMeans
-from pecos.xmc.xlinear.model import XLinearModel
+from .... import pecos
+from ....pecos.core import clib
+from ....pecos.utils import smat_util, torch_util
+from ....pecos.utils.cluster_util import ClusterChain
+from ....pecos.xmc import Indexer, LabelEmbeddingFactory
+from ....pecos.xmc.base import HierarchicalMLModel, HierarchicalKMeans
+from ....pecos.xmc.xlinear.model import XLinearModel
 
 from .matcher import TransformerMatcher
 from .module import MLProblemWithText
