@@ -10,12 +10,10 @@ from ..pecos.xmc.xlinear.model import XLinearModel
 
 from sklearn.preprocessing import normalize
 
-import os
-import sys
-import json
-import logging
 import time
+import os
 
+## set logger
 class XRLinear(BaseModel):
 
 
@@ -38,11 +36,11 @@ class XRLinear(BaseModel):
         self.Yt = None
         self.xlinear_model = None
 
-        self.ns_scheme= 'man'
+        self.ns_scheme = self.config['ns_scheme']
         self.data_dir=f'{self.base_dir}/data/xmc-base/{self.dataset_name}'
-        self.nr_splits=32
         self.seed_arr=[0, 1, 2]
         self.beam_arr=[10, 20, 50]
+        self.ens_method_arr=['average', 'rank_average', 'softmax_average', 'sigmoid_average']
 
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
 
@@ -54,11 +52,12 @@ class XRLinear(BaseModel):
             
             for seed in self.seed_arr:
 
+                self.config['seed'] = seed
+                self.config['beam_size'] = beam_size
                 self.__train_model(seed, beam_size)
                 self.__predict(beam_size)
-
-            ens_method_arr=['average', 'rank_average', 'softmax_average', 'sigmoid_average']
-            for ens_method in ens_method_arr:
+            
+            for ens_method in self.ens_method_arr:
                 self.__ensemble_evaluate(ens_method)
 
     ## todo
@@ -67,9 +66,17 @@ class XRLinear(BaseModel):
         if phase == 'train' and (self.X is None or self.Y is None):
             self.logger.info("| loading data begin...")
             start_time = time.time()
-            self.X = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz') ## todo: change into right name
+            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.trn.npz'):
+                self.X = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz') ## todo: change into right name
+            else:
+                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.trn.npz exists')
             self.X = normalize(self.X, axis=1, norm="l2")
-            self.Y = XLinearModel.load_label_matrix(f'{self.base_dir}/Y.trn.npz', for_training=True) ## todo: change into right name
+
+            if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
+                self.Y = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.trn.npz', for_training=True) ## todo: change into right name
+            else:
+                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+            
             run_time_io = time.time() - start_time
             self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_io))
 
@@ -78,9 +85,18 @@ class XRLinear(BaseModel):
             # Load data
             self.logger.info("| loading data begin...")
             start_time = time.time()
-            self.Xt = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
+            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.tst.npz'):
+                self.Xt = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
+            else:
+                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.tst.npz exists')
+            
             self.Xt = normalize(self.Xt, axis=1, norm="l2")
-            self.Yt = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.tst.npz')
+
+            if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
+                self.Yt = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.tst.npz')
+            else:
+                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+            
             run_time_data = time.time() - start_time
             self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
 
@@ -180,8 +196,8 @@ class XRLinear(BaseModel):
         Yt_pred = self.xlinear_model.predict(
             self.Xt,
             selected_outputs_csr=selected_outputs_csr,
-            threads=-1,
-            max_pred_chunk=10 ** 7,
+            threads=self.config['threads'],
+            max_pred_chunk=self.config['max_pred_chunk'],
         )
         run_time_pred = time.time() - start_time
         self.logger.info("| inference model finsihed | time(s) {:9.4f} latency(ms/q) {:9.4f}".format(
@@ -205,3 +221,5 @@ class XRLinear(BaseModel):
         Y_pred = [smat_util.sorted_csr(smat_util.load_matrix(pp).tocsr()) for pp in [f'{self.output_path}/Yp.tst.b-{beam_size}.npz' for beam_size in self.beam_arr]]
         print("==== evaluation results ====")
         smat_util.CsrEnsembler.print_ens(Y_true, Y_pred, [f'{self.ns_scheme}_seed-{seed}' for seed in self.seed_arr], ens_method=ens_method)
+
+        
