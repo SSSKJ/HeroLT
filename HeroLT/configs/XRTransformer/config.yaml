@@ -1,0 +1,47 @@
+train:
+  # ========= indexer parameters ============
+  fix_clustering: False
+  nr_splits: 16
+  max_leaf_size: 100
+  # ========= matcher parameters ============
+  max_match_clusters: 32768
+  do_fine_tune: True
+  model_shortcut: bert_base_cased
+  # ========== ranker parameters =============
+  only_encoder: False
+  ensemble_method: transformer_only
+  threshold: 0.1
+  # ========== Other parameters ===========
+  loss_function: squared_hinge
+  truncate_length: 128
+  hidden_dropout_prob: 0.1
+  batch_size: 32
+  gradient_accumulation_steps: 1
+  learning_rate: 1.0e-4
+  weight_decay: 0
+  adam_epsilon: 1.0e-8
+  max_grad_norm: 1.0
+  num_train_epochs: 5
+  max_steps: 0
+  max_no_improve_cnt: -1
+  lr_schedule: linear
+  warmup_steps: 0
+  logging_steps: 50
+  save_steps: 100
+  max_num_labels_in_gpu: 65536
+  use_gpu: True
+  bootstrap_method: linear
+  batch_gen_workers: 4
+  seed: 0
+
+predict:
+  # ======= Other parameters ========
+  batch_size: 128
+  max_pred_chunk: 1.0e+7
+  use_gpu: True
+  batch_gen_workers: 16
+  threads: -1
+  seed: 0
+
+eval:
+  topk: 10
