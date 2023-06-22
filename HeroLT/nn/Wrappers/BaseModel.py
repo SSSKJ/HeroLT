@@ -21,12 +21,7 @@ class BaseModel:
         self.base_dir = base_dir
 
         self.output_path = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/'
-        self.__training_data = None
-        self.__testing_data = None
-        self.__model = None
-
-        special_mkdir(f'{base_dir}/outputs/', self.model_name)
-        special_mkdir(f'{base_dir}/outputs/{self.model_name}/', self.dataset_name)
+        os.makedirs(self.output_path, exist_ok = True)
 
     def load_config(self):
 
@@ -34,7 +29,7 @@ class BaseModel:
         if os.path.exists(f'{self.base_dir}/configs/{self.model_name}/config.yaml'):
             config_path = f'{self.base_dir}/configs/{self.model_name}/config.yaml'
         elif os.path.exists(f'{self.base_dir}/configs/{self.model_name}/{self.dataset_name}/config.yaml'):
-            config = f'{self.base_dir}/configs/{self.model_name}/{self.dataset_name}/config.yaml'
+            config_path = f'{self.base_dir}/configs/{self.model_name}/{self.dataset_name}/config.yaml'
         else:
             raise RuntimeError(f'Can not find any configuration files')
         
@@ -50,7 +45,6 @@ class BaseModel:
 
         if self.dataset_name not in files:
 
-            
             ## download and unzip, move files into the right place
             print(f'Download dataset {self.dataset_name}')
         
