@@ -30,11 +30,6 @@ def class_count(data: DataLoader):
         class_data_num.append(len(labels[labels == l]))
     return class_data_num
 
-def special_mkdir(root, name):
-
-    if name not in os.listdir(root):
-        os.mkdir(f'{root}/{name}')
-
 def create_dirs(dirs):
     for dir_tree in dirs:
         sub_dirs = dir_tree.split("/")
