@@ -39,7 +39,10 @@ class MiSLAS(BaseModel):
         
 
         super().load_config()
-
+        self.dataset = None
+        self.model = None
+        self.classifier = None
+        self.block = None
         self.ngpus_per_node = torch.cuda.device_count()
 
     def __load_config(self):
@@ -53,12 +56,10 @@ class MiSLAS(BaseModel):
         if self.dataset_name == 'cifar10_lt' or self.dataset_name == 'cifar100_lt':
             self.model = getattr(MiSLAS_resnet_cifar, config.backbone)()
             self.classifier = getattr(MiSLAS_resnet_cifar, 'Classifier')(feat_in=64, num_classes=config.num_classes)
-            self.block = None
 
         elif self.dataset_name == 'imagenet_lt' or self.dataset_name == 'inatural2018_lt':
             self.model = getattr(MiSLAS_resnet, config.backbone)()
             self.classifier = getattr(MiSLAS_resnet, 'Classifier')(feat_in=2048, num_classes=config.num_classes)
-            self.block = None
 
         elif self.dataset_name == 'places_lt':
             self.model = getattr(MiSLAS_resnet_places, config.backbone)(pretrained=True)

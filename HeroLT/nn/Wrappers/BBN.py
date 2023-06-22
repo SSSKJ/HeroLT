@@ -36,7 +36,7 @@ class BBN(BaseModel):
         self.device = torch.device("cpu" if self.config.CPU_MODE else "cuda")
         self.train_set = None
         self.valid_set = None
-
+        self.model = None
 
     def __load_config(self):
 

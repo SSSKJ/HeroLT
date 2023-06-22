@@ -37,6 +37,8 @@ class TDE(BaseModel):
         self.test_mode = test_mode
 
         self.networks = None
+        self.__training_data = None
+        self.__testing_data = None
 
         self.logger = Logger(self.base_dir, self.model_name, self.dataset_name)
         self.logger.log.info(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')

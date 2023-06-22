@@ -32,6 +32,8 @@ class OLTR(BaseModel):
         self.__load_config()
         self.test_mode = test_mode
         self.networks = None
+        self.__training_data = None
+        self.__testing_data = None
 
         self.scheduler_params = self.training_opt['scheduler_params']
 

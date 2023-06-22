@@ -28,6 +28,9 @@ class Decoupling(CVModel):
             test_mode = test_mode)
         
         super().load_config()
+        self.__training_data = None
+        self.__testing_data = None
+        self.networks = None
         # Initialize model
         self.__init_model()
 

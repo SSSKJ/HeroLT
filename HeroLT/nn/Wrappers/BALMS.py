@@ -33,6 +33,9 @@ class BALMS(CVModel):
 
         self.meta_sample = False
         self.learner = None
+        self.__training_data = None
+        self.__testing_data = None
+        self.networks = None
         
         # Initialize model
         self.__init_model()
@@ -400,6 +403,10 @@ class BALMS(CVModel):
                 self.meta_data = iter(self.__training_data['meta'])
 
         else:
+
+            if (self.__testing_data is not None) and (not force):
+
+                return self.__testing_data
 
             self.logger.log.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
