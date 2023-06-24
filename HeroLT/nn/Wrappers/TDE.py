@@ -143,7 +143,7 @@ class TDE(BaseModel):
             splits = ['train', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
                                             phase=x, 
                                             batch_size=training_opt['batch_size'],
@@ -175,7 +175,7 @@ class TDE(BaseModel):
                 splits = ['train', 'val']
                 self.test_split = 'val'
 
-            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                     dataset=dataset, 
                                     phase=x,
                                     batch_size=training_opt['batch_size'],

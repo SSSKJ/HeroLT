@@ -345,25 +345,25 @@ class BALMS(CVModel):
                 def_file = sampler_defs['def_file']
                 if sampler_defs['type'] == 'ClassAwareSampler':
                     sampler_dic = {
-                        'sampler': source_import(f'{self.base_dir}/tools/{def_file}.py').get_sampler(),
+                        'sampler': source_import(f'{self.base_dir}/nn/Samplers/{def_file}.py').get_sampler(),
                         'params': {'num_samples_cls': sampler_defs['num_samples_cls']}
                     }
                 elif sampler_defs['type'] in ['MixedPrioritizedSampler',
                                             'ClassPrioritySampler']:
                     sampler_dic = {
-                        'sampler': source_import(f'{self.base_dir}/tools/{def_file}.py').get_sampler(),
+                        'sampler': source_import(f'{self.base_dir}/nn/Samplers/{def_file}.py').get_sampler(),
                         'params': {k: v for k, v in sampler_defs.items() \
                                 if k not in ['type', 'def_file']}
                     }
                 elif sampler_defs['type'] == 'MetaSampler':  # Add option for Meta Sampler
-                    self.learner = source_import(f'{self.base_dir}/tools/{def_file}.py').get_learner()(
+                    self.learner = source_import(f'{self.base_dir}/nn/Samplers/{def_file}.py').get_learner()(
                         num_classes=self.training_opt['num_classes'],
                         init_pow=sampler_defs.get('init_pow', 0.0),
                         freq_path=sampler_defs.get('freq_path', None)
                     ).cuda()
                     sampler_dic = {
                         'batch_sampler': True,
-                        'sampler': source_import(f'{self.base_dir}/tools/{def_file}.py').get_sampler(),
+                        'sampler': source_import(f'{self.base_dir}/nn/Samplers/{def_file}.py').get_sampler(),
                         'params': {'meta_learner': self.learner, 'batch_size': self.training_opt['batch_size']}
                     }
             else:
@@ -372,7 +372,7 @@ class BALMS(CVModel):
             splits = ['train', 'train_plain', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            self.__training_data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+            self.__training_data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
                                             phase=x, 
                                             batch_size=self.training_opt['batch_size'],
@@ -384,11 +384,11 @@ class BALMS(CVModel):
 
             if sampler_defs and sampler_defs['type'] == 'MetaSampler':   # todo: use meta-sampler
                 cbs_sampler_dic = {
-                        'sampler': source_import(f'{self.base_dir}/tools/ClassAwareSampler.py').get_sampler(),
+                        'sampler': source_import(f'{self.base_dir}/nn/Samplers/ClassAwareSampler.py').get_sampler(),
                         'params': {'is_infinite': True}
                     }
                 # use Class Balanced Sampler to create meta set
-                self.__training_data['meta'] = BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+                self.__training_data['meta'] = BALMSDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
                                             phase='train' if 'CIFAR' in dataset else 'val',
                                             batch_size=sampler_defs.get('meta_batch_size', self.training_opt['batch_size'], ),
@@ -422,7 +422,7 @@ class BALMS(CVModel):
                 self.test_split = 'val'
             splits.append('train_plain')
 
-            data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}',
+            data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
                                             phase=x,
                                             batch_size=self.training_opt['batch_size'],

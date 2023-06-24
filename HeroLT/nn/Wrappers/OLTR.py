@@ -38,7 +38,7 @@ class OLTR(BaseModel):
         self.scheduler_params = self.training_opt['scheduler_params']
 
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
-        self.logger(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
+        self.logger.info(f'Log will be saved to {self.base_dir}/logs/{self.model_name}_{self.dataset_name}.log')
 
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
             
@@ -58,7 +58,7 @@ class OLTR(BaseModel):
             self.criterion_weights[key] = val['weight']
           
             if val['optim_params']:
-                self.logger('Initializing criterion optimizer.')
+                self.logger.info('Initializing criterion optimizer.')
                 optim_params = val['optim_params']
                 optim_params = [{'params': self.criterions[key].parameters(),
                                 'lr': optim_params['lr'],
@@ -72,7 +72,7 @@ class OLTR(BaseModel):
 
     def __init_optimizer_and_scheduler(self):
         # Initialize model optimizer and scheduler
-        self.logger('Initializing model optimizer.')
+        self.logger.info('Initializing model optimizer.')
         self.model_optimizer, self.model_optimizer_scheduler = self.__init_optimizers(self.model_optim_params_list)
 
     def __init_optimizers(self, optim_params):
@@ -103,7 +103,7 @@ class OLTR(BaseModel):
 
         # Initialize model
         self.__init_model()
-        self.logger('Using steps for training.')
+        self.logger.info('Using steps for training.')
         self.training_data_num = len(self.data['train'].dataset)
         self.epoch_steps = int(self.training_data_num  \
                                 / self.training_opt['batch_size'])
@@ -116,7 +116,7 @@ class OLTR(BaseModel):
                 self.__centroids_cal(self.data['train_plain'])
         
         # When training the network
-        self.logger('-----------------------------------Phase: train-----------------------------------')
+        self.logger.info('-----------------------------------Phase: train-----------------------------------')
 
         # Initialize best model
         best_model_weights = {}
@@ -187,13 +187,13 @@ class OLTR(BaseModel):
                 best_model_weights['feat_model'] = copy.deepcopy(self.networks['feat_model'].state_dict())
                 best_model_weights['classifier'] = copy.deepcopy(self.networks['classifier'].state_dict())
 
-        self.logger('Training Complete.')
+        self.logger.info('Training Complete.')
 
-        self.logger('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
+        self.logger.info('Best validation accuracy is %.3f at epoch %d' % (best_acc, best_epoch))
         # Save the best model and best centroids if calculated
         self.__save_model(epoch, best_epoch, best_model_weights, best_acc, centroids=best_centroids)
                 
-        self.logger('Done')
+        self.logger.info('Done')
     
     def eval(self, phase='val', openset=False):
 
@@ -266,15 +266,16 @@ class OLTR(BaseModel):
 
                 return self.__training_data
 
-            self.logger('Loading data for Training')
+            self.logger.info('Loading data for Training')
             sampler_defs = training_opt['sampler']
+            def_file = sampler_defs['def_file']
             if sampler_defs:
-                sampler_dic = {'sampler': source_import(sampler_defs['def_file']).get_sampler(), 
+                sampler_dic = {'sampler': source_import(f'{self.base_dir}/nn/Samplers/{def_file}.py').get_sampler(), 
                             'num_samples_cls': sampler_defs['num_samples_cls']}
             else:
                 sampler_dic = None
 
-            self.__training_data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
+            self.__training_data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
                                         dataset=self.dataset_name, 
                                         phase=x, 
                                         batch_size=training_opt['batch_size'],
@@ -290,11 +291,11 @@ class OLTR(BaseModel):
 
                 return self.__testing_data
 
-            self.logger('Loading data for Testing')
-            self.logger('Under testing phase, we load training data simply to calculate \
+            self.logger.info('Loading data for Testing')
+            self.logger.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
-            data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/datasets/{dataset}', 
+            data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
                                         dataset=dataset, 
                                         phase=x,
                                         batch_size=training_opt['batch_size'],
@@ -313,7 +314,7 @@ class OLTR(BaseModel):
         self.networks = {}
         self.model_optim_params_list = []
 
-        self.logger("Using", torch.cuda.device_count(), "GPUs.")
+        self.logger.info("Using", torch.cuda.device_count(), "GPUs.")
         
         for key, val in networks_defs.items():
 
@@ -327,7 +328,7 @@ class OLTR(BaseModel):
             self.networks[key] = nn.DataParallel(self.networks[key]).to(self.device)
             
             if 'fix' in val and val['fix']:
-                self.logger('Freezing feature weights except for modulated attention weights (if exist).')
+                self.logger.info('Freezing feature weights except for modulated attention weights (if exist).')
                 for param_name, param in self.networks[key].named_parameters():
                     # Freeze all parameters except self attention parameters
                     if 'modulatedatt' not in param_name and 'fc' not in param_name:
@@ -394,7 +395,7 @@ class OLTR(BaseModel):
         centroids = torch.zeros(self.training_opt['num_classes'],
                                    self.training_opt['feature_dim']).cuda()
 
-        self.logger('Calculating centroids.')
+        self.logger.info('Calculating centroids.')
 
         for model in self.networks.values():
             model.eval()
@@ -423,8 +424,8 @@ class OLTR(BaseModel):
             
         model_dir = model_dir = f'{self.output_path}/final_model_checkpoint.pth'
         
-        self.logger('Validation on the best model.')
-        self.logger('Loading model from %s' % (model_dir))
+        self.logger.info('Validation on the best model.')
+        self.logger.info('Loading model from %s' % (model_dir))
         
         checkpoint = torch.load(model_dir)          
         model_state = checkpoint['state_dict_best']
