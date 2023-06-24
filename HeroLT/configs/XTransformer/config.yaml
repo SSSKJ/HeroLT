@@ -1,0 +1,14 @@
+train:
+  negative_sampling_scheme: 0
+  mode: ranker
+  solver_type: L2R_L2LOSS_SVC_DUAL
+  Cp: 1.0
+  Cn: 1.0
+  bias: 1.0
+  threshold: 0.01
+  threads: -1
+
+predict:
+  transform: noop
+  only_topk: 10
+  beam_size: 10
