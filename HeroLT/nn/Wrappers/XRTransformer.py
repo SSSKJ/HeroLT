@@ -42,7 +42,7 @@ class XRTransformer(BaseModel):
 
         self.xtf = None
 
-        self.data_dir=f'{self.base_dir}/data/xmc-base/{self.dataset_name}'
+        self.data_dir=f'{self.base_dir}/data/NLPData/xmc-base/{self.dataset_name}'
 
         self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
         
@@ -137,6 +137,8 @@ class XRTransformer(BaseModel):
             
             run_time_data = time.time() - start_time
             self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+        else:
+            raise RuntimeError(f'Unkown phase {phase}')
 
 
 

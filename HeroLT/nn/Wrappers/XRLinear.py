@@ -37,7 +37,7 @@ class XRLinear(BaseModel):
         self.xlinear_model = None
 
         self.ns_scheme = self.config['ns_scheme']
-        self.data_dir=f'{self.base_dir}/data/xmc-base/{self.dataset_name}'
+        self.data_dir=f'{self.base_dir}/data/NLPData/xmc-base/{self.dataset_name}'
         self.seed_arr=[0, 1, 2]
         self.beam_arr=[10, 20, 50]
         self.ens_method_arr=['average', 'rank_average', 'softmax_average', 'sigmoid_average']
@@ -99,6 +99,8 @@ class XRLinear(BaseModel):
             
             run_time_data = time.time() - start_time
             self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+        else:
+            raise RuntimeError(f'Unkown phase {phase}')
 
     def load_pretrained_model(self):
         
