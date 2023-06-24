@@ -173,6 +173,7 @@ class XLinearModel(pecos.BaseClass):
         user_supplied_negatives=None,
         train_params=None,
         pred_params=None,
+        logger=None,
         **kwargs,
     ):
         """Training method for XLinearModel
@@ -277,8 +278,9 @@ class XLinearModel(pecos.BaseClass):
             matching_chain=matching_chain,
             train_params=train_params.hlm_args,
             pred_params=pred_params.hlm_args,
+            logger = logger,
             **kwargs,
-        ) # todo: logger
+        )
         return cls(model)
 
     def set_output_constraint(self, labels_to_keep):

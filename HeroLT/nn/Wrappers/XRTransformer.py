@@ -185,6 +185,7 @@ class XRTransformer(BaseModel):
 
         cluster_chain = Indexer.gen(
             label_feat,
+            logger=self.logger,
             train_params=train_params.preliminary_indexer_params,
         )
         del label_feat
@@ -199,13 +200,14 @@ class XRTransformer(BaseModel):
             train_params=train_params,
             pred_params=pred_params,
             beam_size=None,
+            logger=self.logger,
         )
 
-        self.xtf.save(self.model_dir)
+        self.xtf.save(self.model_dir, logger = self.logger)
     
     def load_pretrained_model(self):
 
-        self.xtf = XTransformer.load(self.model_dir)
+        self.xtf = XTransformer.load(self.model_dir, logger = self.logger)
 
     def __predict(self):
 
@@ -231,6 +233,7 @@ class XRTransformer(BaseModel):
             use_gpu=config['use_gpu'],
             max_pred_chunk=config['max_pred_chunk'],
             threads=config['threads'],
+            logger = self.logger,
         )
 
         smat_util.save_matrix(os.path.join(self.model_dir, "Pt.npz"), P_matrix)
@@ -250,4 +253,4 @@ class XRTransformer(BaseModel):
         Y_true = sorted_csr(load_matrix(f'{self.data_dir}/Y.tst.npz').tocsr())
         Y_pred = [sorted_csr(load_matrix(pp).tocsr()) for pp in [f'{self.output_path}/{model}/Pt.npz' for model in self.models]]
         self.logger.log("==== evaluation results ====")
-        CsrEnsembler.print_ens(Y_true, Y_pred, self.models, ens_method=self.ens_method)
+        CsrEnsembler.print_ens(Y_true, Y_pred, self.models, logger = self.logger, ens_method=self.ens_method)

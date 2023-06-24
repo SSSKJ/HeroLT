@@ -923,7 +923,7 @@ class CsrEnsembler(object):
         return ret
 
     @staticmethod
-    def print_ens(Ytrue, pred_set, param_set, ens_method="rank_average", topk=10):
+    def print_ens(Ytrue, pred_set, param_set, logger, ens_method="rank_average", topk=10):
         """Print metrics before and after ensemble
 
         Args:
@@ -935,16 +935,16 @@ class CsrEnsembler(object):
         """
 
         for param, pred in zip(param_set, pred_set):
-            print("param: {}".format(param))
-            print(Metrics.generate(Ytrue, pred, topk=topk))
+            logger.info("param: {}".format(param))
+            logger.info(Metrics.generate(Ytrue, pred, topk=topk))
 
         if not isinstance(ens_method, list):
             ens_method = [ens_method]
         for ens_name in ens_method:
             ens = getattr(CsrEnsembler, ens_name)
             cur_pred = ens(*pred_set)
-            print(f"==== {ens_name} ensemble results ====")
-            print(Metrics.generate(Ytrue, cur_pred, topk=topk))
+            logger.info(f"==== {ens_name} ensemble results ====")
+            logger.info(Metrics.generate(Ytrue, cur_pred, topk=topk))
 
 
 class Metrics(collections.namedtuple("Metrics", ["prec", "recall"])):

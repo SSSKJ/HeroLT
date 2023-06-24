@@ -10,7 +10,6 @@
 #  and limitations under the License.
 import copy
 import json
-import logging
 import math
 import os
 from abc import ABCMeta
@@ -33,8 +32,6 @@ from ...pecos.utils import smat_util
 from ...pecos.utils.cluster_util import ClusterChain
 from sklearn.preprocessing import normalize
 
-LOGGER = logging.getLogger(__name__)
-
 
 class IndexerMeta(ABCMeta):
     """Metaclass for keeping track of all `Indexer` subclasses."""
@@ -54,7 +51,7 @@ class Indexer(metaclass=IndexerMeta):
     indexer_dict = IndexerMeta.indexer_dict
 
     @classmethod
-    def gen(cls, feat_mat, indexer_type="hierarchicalkmeans", **kwargs):
+    def gen(cls, feat_mat, logger, indexer_type="hierarchicalkmeans", **kwargs):
         """Generate a cluster chain.
 
         Args:
@@ -66,7 +63,7 @@ class Indexer(metaclass=IndexerMeta):
             ClusterChain: The generated cluster chain.
         """
 
-        return cls.indexer_dict[indexer_type].gen(feat_mat, **kwargs)
+        return cls.indexer_dict[indexer_type].gen(feat_mat, logger, **kwargs)
 
 
 class HierarchicalKMeans(Indexer):
@@ -149,6 +146,7 @@ class HierarchicalKMeans(Indexer):
     def gen(
         cls,
         feat_mat,
+        logger,
         train_params=None,
         dtype=np.float32,
         **kwargs,
@@ -177,7 +175,7 @@ class HierarchicalKMeans(Indexer):
             train_params.warmup_ratio = 1.0
             train_params.min_sample_rate = 1.0
 
-        LOGGER.debug(
+        logger.debug(
             f"HierarchicalKMeans train_params: {json.dumps(train_params.to_dict(), indent=True)}"
         )
 
@@ -1341,6 +1339,7 @@ class HierarchicalMLModel(pecos.BaseClass):
         matching_chain=None,
         train_params=None,
         pred_params=None,
+        logger=None,
         **kwargs,
     ):
         """Training method for HierarchicalMLModel
@@ -1427,10 +1426,10 @@ class HierarchicalMLModel(pecos.BaseClass):
             )
         pred_params.override_with_kwargs(kwargs.get("pred_kwargs", None))
 
-        LOGGER.debug(
+        logger.debug(
             f"HierarchicalMLModel train_params: {json.dumps(train_params.to_dict(), indent=True)}"
         )
-        LOGGER.debug(
+        logger.debug(
             f"HierarchicalMLModel pred_params: {json.dumps(pred_params.to_dict(), indent=True)}"
         )
         # construct Y_chain
@@ -1458,7 +1457,7 @@ class HierarchicalMLModel(pecos.BaseClass):
             negative_sampling_scheme = train_params.neg_mining_chain[t]
             cur_train_params = train_params.model_chain[t]
             cur_pred_params = pred_params.model_chain[t]
-            LOGGER.info(
+            logger.info(
                 f"Training Layer {t} of {len(Y_chain)} Layers in HierarchicalMLModel, neg_mining={negative_sampling_scheme}.."
             )
             if t == 0:

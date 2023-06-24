@@ -131,7 +131,7 @@ class XRLinear(BaseModel):
         self.logger.info("| building HLT...")
         start_time = time.time()
         label_feat = LabelEmbeddingFactory.create(self.Y, self.X, method="pifa")
-        cluster_chain = Indexer.gen(label_feat, train_params=self.indexer_params)
+        cluster_chain = Indexer.gen(label_feat, logger = self.logger, train_params=self.indexer_params)
 
         run_time_hlt = time.time() - start_time
         self.logger.info("| building HLT finsihed | time(s) {:9.4f}".format(run_time_hlt))
@@ -159,7 +159,8 @@ class XRLinear(BaseModel):
             train_params=self.train_params,
             pred_params=self.pred_params,
             pred_kwargs=pred_kwargs,
-        ) # todo: logger
+            logger = self.logger,
+        )
         run_time_xrl = time.time() - start_time
         self.logger.info("| training XR_Linear finsihed | time(s) {:9.4f}".format(run_time_xrl))
 
@@ -221,7 +222,7 @@ class XRLinear(BaseModel):
         """ Evaluate xlinear predictions """
         Y_true = smat_util.sorted_csr(smat_util.load_matrix(f'{self.data_dir}/Y.tst.npz').tocsr())
         Y_pred = [smat_util.sorted_csr(smat_util.load_matrix(pp).tocsr()) for pp in [f'{self.output_path}/Yp.tst.b-{beam_size}.npz' for beam_size in self.beam_arr]]
-        print("==== evaluation results ====")
-        smat_util.CsrEnsembler.print_ens(Y_true, Y_pred, [f'{self.ns_scheme}_seed-{seed}' for seed in self.seed_arr], ens_method=ens_method)
+        self.logger.info("==== evaluation results ====")
+        smat_util.CsrEnsembler.print_ens(Y_true, Y_pred, [f'{self.ns_scheme}_seed-{seed}' for seed in self.seed_arr], logger = self.logger, ens_method=ens_method)
 
         

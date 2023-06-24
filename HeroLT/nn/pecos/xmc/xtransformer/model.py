@@ -26,8 +26,6 @@ from ....pecos.xmc.xlinear.model import XLinearModel
 from .matcher import TransformerMatcher
 from .module import MLProblemWithText
 
-LOGGER = logging.getLogger(__name__)
-
 
 class XTransformer(pecos.BaseClass):
     """Hierarchical-XTransformer for XMC.
@@ -154,7 +152,7 @@ class XTransformer(pecos.BaseClass):
         else:
             return self.text_encoder.nr_labels
 
-    def save(self, save_dir):
+    def save(self, save_dir, logger):
         """Save the X-Transformer model to file.
 
         Args:
@@ -173,15 +171,15 @@ class XTransformer(pecos.BaseClass):
         param_dir = os.path.join(save_dir, "param.json")
         with open(param_dir, "w", encoding="utf-8") as fpa:
             fpa.write(json.dumps(params, indent=True))
-        LOGGER.info("Parameters saved to {}".format(param_dir))
+        logger.info("Parameters saved to {}".format(param_dir))
 
         self.text_encoder.save(os.path.join(save_dir, "text_encoder"))
         if self.concat_model:
             self.concat_model.save(os.path.join(save_dir, "concat_model"))
-        LOGGER.info("Model saved to {}".format(save_dir))
+        logger.info("Model saved to {}".format(save_dir))
 
     @classmethod
-    def load(cls, load_dir, **xrl_kwargs):
+    def load(cls, load_dir, logger, **xrl_kwargs):
         """Load X-Transformer model from file
 
         Args:
@@ -199,10 +197,10 @@ class XTransformer(pecos.BaseClass):
                 os.path.join(load_dir, "concat_model"),
                 **xrl_kwargs,
             )
-            LOGGER.info("Full model loaded from {}".format(load_dir))
+            logger.info("Full model loaded from {}".format(load_dir))
         except FileNotFoundError:
             concat_model = None
-            LOGGER.info("Concat model not exist, text encoder loaded from {}".format(load_dir))
+            logger.info("Concat model not exist, text encoder loaded from {}".format(load_dir))
         return cls(text_encoder, concat_model)
 
     def get_pred_params(self):
@@ -223,6 +221,7 @@ class XTransformer(pecos.BaseClass):
         val_prob=None,
         train_params=None,
         pred_params=None,
+        logger=None,
         **kwargs,
     ):
         """Train the XR-Transformer model with the given input data.
@@ -283,12 +282,12 @@ class XTransformer(pecos.BaseClass):
 
             if matcher_train_params.init_model_dir:
                 parent_model = TransformerMatcher.load(matcher_train_params.init_model_dir)
-                LOGGER.info("Loaded encoder from {}.".format(matcher_train_params.init_model_dir))
+                logger.info("Loaded encoder from {}.".format(matcher_train_params.init_model_dir))
             else:
                 parent_model = TransformerMatcher.download_model(
                     matcher_train_params.model_shortcut,
                 )
-                LOGGER.info(
+                logger.info(
                     "Downloaded encoder from {}.".format(matcher_train_params.model_shortcut)
                 )
 
@@ -315,12 +314,12 @@ class XTransformer(pecos.BaseClass):
                 if clustering[-1].shape[0] != prob.nr_labels:
                     raise ValueError("nr_labels mismatch!")
             prelim_hierarchiy = [cc.shape[0] for cc in clustering]
-            LOGGER.info("Hierarchical label tree: {}".format(prelim_hierarchiy))
+            logger.info("Hierarchical label tree: {}".format(prelim_hierarchiy))
 
             # get the fine-tuning task numbers
             nr_transformers = sum(i <= train_params.max_match_clusters for i in prelim_hierarchiy)
 
-            LOGGER.info(
+            logger.info(
                 "Fine-tune Transformers with nr_labels={}".format(
                     [cc.shape[0] for cc in clustering[:nr_transformers]]
                 )
@@ -331,7 +330,7 @@ class XTransformer(pecos.BaseClass):
                 train_params, cls.TrainParams, nr_transformers
             )
 
-            LOGGER.debug(
+            logger.debug(
                 f"XTransformer train_params: {json.dumps(train_params.to_dict(), indent=True)}"
             )
 
@@ -340,11 +339,11 @@ class XTransformer(pecos.BaseClass):
             )
             pred_params = pred_params.override_with_kwargs(kwargs)
 
-            LOGGER.debug(
+            logger.debug(
                 f"XTransformer pred_params: {json.dumps(pred_params.to_dict(), indent=True)}"
             )
 
-            def get_negative_samples(mat_true, mat_pred, scheme):
+            def get_negative_samples(mat_true, mat_pred, scheme, logger):
                 if scheme == "tfn":
                     result = smat_util.binarized(mat_true)
                 elif scheme == "man":
@@ -353,7 +352,7 @@ class XTransformer(pecos.BaseClass):
                     result = smat_util.binarized(mat_true) + smat_util.binarized(mat_pred)
                 else:
                     raise ValueError("Unrecognized negative sampling method {}".format(scheme))
-                LOGGER.debug(
+                logger.debug(
                     f"Construct {scheme} with shape={result.shape} avr_M_nnz={result.nnz/result.shape[0]}"
                 )
                 return result
@@ -388,7 +387,7 @@ class XTransformer(pecos.BaseClass):
                 # construct train and val problem for level i
                 # note that final layer do not need X_feat
                 if i > 0:
-                    M = get_negative_samples(YC_list[i - 1], M_pred, cur_ns)
+                    M = get_negative_samples(YC_list[i - 1], M_pred, cur_ns, logger)
 
                 cur_prob = MLProblemWithText(
                     prob.X_text,
@@ -399,7 +398,7 @@ class XTransformer(pecos.BaseClass):
                 )
                 if val_prob is not None:
                     if i > 0:
-                        val_M = get_negative_samples(val_YC_list[i - 1], val_M_pred, cur_ns)
+                        val_M = get_negative_samples(val_YC_list[i - 1], val_M_pred, cur_ns, logger)
                     cur_val_prob = MLProblemWithText(
                         val_prob.X_text,
                         val_YC_list[i],
@@ -415,7 +414,7 @@ class XTransformer(pecos.BaseClass):
                     if cur_prob.M is not None
                     else YC_list[i].shape[1]
                 )
-                LOGGER.info(
+                logger.info(
                     "Fine-tuning XR-Transformer with {} at level {}, nr_labels={}, avr_M_nnz={}".format(
                         cur_ns, i, YC_list[i].shape[1], avr_trn_labels
                     )
@@ -472,7 +471,7 @@ class XTransformer(pecos.BaseClass):
                 normalize_emb=True,
             )
             del inst_embeddings
-            LOGGER.info("Constructed instance feature matrix with shape={}".format(X_concat.shape))
+            logger.info("Constructed instance feature matrix with shape={}".format(X_concat.shape))
 
             # 3. construct refined HLT
             if train_params.fix_clustering:
@@ -482,7 +481,7 @@ class XTransformer(pecos.BaseClass):
                     LabelEmbeddingFactory.pifa(prob.Y, X_concat),
                     train_params=train_params.refined_indexer_params,
                 )
-            LOGGER.info(
+            logger.info(
                 "Hierarchical label tree for ranker: {}".format([cc.shape[0] for cc in clustering])
             )
 
@@ -504,7 +503,7 @@ class XTransformer(pecos.BaseClass):
             pred_params.ranker_params.override_with_kwargs(kwargs)
 
             # train the ranker
-            LOGGER.info("Start training ranker...")
+            logger.info("Start training ranker...")
 
             ranker = XLinearModel.train(
                 X_concat,
@@ -521,6 +520,7 @@ class XTransformer(pecos.BaseClass):
         X_text,
         X_feat=None,
         pred_params=None,
+        logger=None,
         **kwargs,
     ):
         """Use the XR-Transformer model to predict on given data.
@@ -567,7 +567,7 @@ class XTransformer(pecos.BaseClass):
             pred_params = self.PredParams.from_dict(pred_params)
         pred_params.override_with_kwargs(kwargs)
 
-        LOGGER.debug(
+        logger.debug(
             f"Prediction with pred_params: {json.dumps(pred_params.to_dict(), indent=True)}"
         )
         if isinstance(pred_params.matcher_params_chain, list):
@@ -592,7 +592,7 @@ class XTransformer(pecos.BaseClass):
             embeddings,
             normalize_emb=True,
         )
-        LOGGER.debug(
+        logger.debug(
             "Constructed instance feature matrix with shape={}".format(cat_embeddings.shape)
         )
         pred_csr = self.concat_model.predict(
@@ -607,6 +607,7 @@ class XTransformer(pecos.BaseClass):
         self,
         X_text,
         pred_params=None,
+        logger=None,
         **kwargs,
     ):
         """Use the Transformer text encoder to generate embeddings for input data.
@@ -642,7 +643,7 @@ class XTransformer(pecos.BaseClass):
             pred_params = self.PredParams.from_dict(pred_params)
         pred_params.override_with_kwargs(kwargs)
 
-        LOGGER.debug(f"Encode with pred_params: {json.dumps(pred_params.to_dict(), indent=True)}")
+        logger.debug(f"Encode with pred_params: {json.dumps(pred_params.to_dict(), indent=True)}")
         if isinstance(pred_params.matcher_params_chain, list):
             encoder_pred_params = pred_params.matcher_params_chain[-1]
         else:
