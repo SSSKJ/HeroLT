@@ -51,9 +51,9 @@ from torch.utils.data.distributed import DistributedSampler
 
 from tqdm import tqdm, trange
 
-import xbert.rf_linear as rf_linear
-import xbert.rf_util as rf_util
-from xbert.modeling import BertForXMLC, RobertaForXMLC, XLNetForXMLC
+import rf_linear
+import rf_util
+from .modeling import BertForXMLC, RobertaForXMLC, XLNetForXMLC
 
 from transformers import (
     WEIGHTS_NAME,

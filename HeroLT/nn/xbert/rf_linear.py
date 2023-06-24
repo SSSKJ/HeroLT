@@ -15,8 +15,8 @@ import scipy as sp
 import scipy.sparse as smat
 from sklearn.preprocessing import normalize as sk_normalize
 
-import xbert.indexer as indexer
-from xbert.rf_util import (
+import indexer
+from .rf_util import (
     PyMatrix,
     fillprototype,
     load_dynamic_library,
@@ -1072,96 +1072,3 @@ def grid_search(data, grid_params, **kw_args):
         results += [pred_csr]
         params += [dict(zip(keys, values))]
     return results, params
-
-
-def test_speed(datafolder="dataset/Eurlex-4K", depth=3):
-    data = Data.load(datafolder, depth=depth)
-    X = data.X
-    Y = data.Y
-    C = data.C
-    only_topk = 20
-    topk = 10
-    Cp = 1
-    Cn = 1
-    threshold = 0.01
-    # solver_type = L2R_LR_DUAL
-    solver_type = L2R_L2LOSS_SVC_DUAL
-    # test multi-label with codes
-    prob = MLProblem(X, Y, C)
-    m = MLModel(smat.rand(data.X.shape[1], data.Y.shape[1], 0.1))
-    rows = sp.arange(data.Yt.shape[0], dtype=sp.uint32)
-    cols = sp.arange(data.Yt.shape[1], dtype=sp.uint32)
-    inst_idx = sp.repeat(rows, sp.ones_like(rows, dtype=rows.dtype) * data.Yt.shape[1]).astype(sp.uint32)
-    label_idx = sp.ones((len(rows), 1), dtype=sp.uint32).dot(cols.reshape(1, -1))[:]
-    yy = m.predict_values(data.Xt, inst_idx, label_idx).reshape(data.Yt.shape[0], -1)
-
-
-def test_svm(datafolder="dataset/Eurlex-4K", depth=3):
-    data = Data.load(datafolder, depth=depth)
-    X = PyMatrix(data.X, dtype=data.X.dtype)
-    # X = data.X
-    Y = data.Y
-    C = data.C
-    only_topk = 20
-    topk = 10
-    Cp = 1
-    Cn = 1
-    threshold = 0.01
-    # solver_type = L2R_LR_DUAL
-    solver_type = L2R_L2LOSS_SVC_DUAL
-
-    # test multi-label with codes
-    prob = MLProblem(X, Y, C)
-    m = MLModel.train(prob, threshold=threshold, solver_type=solver_type, Cp=Cp, Cn=Cn)
-    pred_Y = m.predict(X, only_topk=only_topk)
-    print("sparse W with top {}".format(topk))
-    metric = Metrics.generate(Y, pred_Y, topk)
-    print(metric)
-    """
-    print('|W|^2 = {}'.format((m.W.toarray() * m.W.toarray()).sum()))
-    coo = smat_util.dense_to_coo(sp.ones(pred_Y.shape))
-    YY = smat_util.sorted_csr(smat.csr_matrix(m.predict_values(X, coo.row, coo.col).reshape(pred_Y.shape)))
-    metric = Metrics.generate(Y, YY, topk)
-    print(metric)
-    YY = smat_util.sorted_csr(smat.csr_matrix(X.dot(m.W)))
-    metric = Metrics.generate(Y, YY, topk)
-    print(metric)
-    """
-
-    # test hierarchical multi-label
-    print("Hierarchical-Multilabel")
-    beam_size = 4
-    min_labels = 2
-    nr_splits = 2
-    m = ml_train(prob, hierarchical=True, min_labels=min_labels, threshold=threshold, solver_type=solver_type, Cp=Cp, Cn=Cn,)
-    print("m.depth = {}".format(m.depth))
-    pred_Y = m.predict(X, beam_size=beam_size, only_topk=only_topk)
-    print(pred_Y.shape)
-    print("sparse W with top {}".format(topk))
-    metric = Metrics.generate(Y, pred_Y, topk)
-    print(metric)
-    """
-    max_depth = 2
-    print('Predict up to depth = {}'.format(max_depth))
-    pred_Y = m.predict(X, only_topk=only_topk, max_depth=max_depth)
-    trueY = Y.copy()
-    for d in range(m.depth - 1, max_depth - 1, -1):
-        trueY = trueY.dot(m.model_chain[d].C)
-    metric = Metrics.generate(trueY, pred_Y, topk)
-    print(metric)
-    #print('|W|^2 = {}'.format((m.W.toarray() * m.W.toarray()).sum()))
-    """
-
-    # test pure multi-label
-    print("pure one-vs-rest Multi-label")
-    prob = MLProblem(X, Y)
-    m = MLModel.train(prob, threshold=threshold, solver_type=solver_type, Cp=Cp, Cn=Cn)
-    pred_Y = m.predict(X, only_topk=only_topk)
-    metric = Metrics.generate(Y, pred_Y, topk)
-    print(metric)
-    print("|W|^2 = {}".format((m.W.toarray() * m.W.toarray()).sum()))
-
-
-if __name__ == "__main__":
-    test_svm(datafolder="./datasets/Eurlex-4K", depth=6)
-    test_speed(datafolder="./datasets/Eurlex-4K", depth=6)

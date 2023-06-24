@@ -12,7 +12,7 @@ import ctypes
 from ctypes import *
 from sklearn.preprocessing import normalize as sk_normalize
 
-from xbert.rf_util import PyMatrix, fillprototype, load_dynamic_library
+from .rf_util import PyMatrix, fillprototype, load_dynamic_library
 
 class RandomProject(object):
 
