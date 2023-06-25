@@ -7,6 +7,7 @@ from ..Models import MiSLAS_resnet_places
 from ...tools.loaders import *
 from ...tools import LearnableWeightScaling, LabelAwareSmoothing
 from ...utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion
+from ...utils.logger import get_logger
 
 import torch
 import torch.nn as nn
@@ -20,8 +21,10 @@ import torch.nn.functional as F
 
 import os
 import random
-import numpy as np
+import time
+
 import math
+import numpy as np
 
 class MiSLAS(BaseModel):
 
@@ -38,12 +41,15 @@ class MiSLAS(BaseModel):
             base_dir = base_dir)
         
 
-        super().load_config()
+        self.__load_config()
         self.dataset = None
         self.model = None
         self.classifier = None
         self.block = None
         self.ngpus_per_node = torch.cuda.device_count()
+
+        self.logger = get_logger(self.base_dir, f'{self.model_name}_{self.dataset_name}.log')
+        self.model_dir = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/'
 
     def __load_config(self):
 
@@ -168,13 +174,11 @@ class MiSLAS(BaseModel):
 
     def __main_worker(self, config, phase):
 
-        model_dir = f'{self.base_dir}/outputs/{self.model_name}/{self.dataset_name}/'
-
         best_acc1 = 0
         its_ece = 100
 
         if config.gpu is not None:
-            print("Use GPU: {} for training".format(config.gpu))
+            self.logger.info("Use GPU: {} for training".format(config.gpu))
 
         if config.distributed:
             if config.dist_url == "env://" and config.rank == -1:
@@ -189,7 +193,7 @@ class MiSLAS(BaseModel):
         self.__init_model(config, phase)
 
         if not torch.cuda.is_available():
-            print('using CPU, this will be slow')
+            self.logger.info('using CPU, this will be slow')
         elif config.distributed:
             # For multiprocessing distributed, DistributedDataParallel constructor
             # should always set the single device scope, otherwise,
@@ -233,28 +237,11 @@ class MiSLAS(BaseModel):
                 self.block = torch.nn.DataParallel(self.block).cuda()
 
         # optionally resume from a checkpoint
-        if config.resume:
-            if os.path.isfile(config.resume):
-                print("=> loading checkpoint '{}'".format(config.resume))
-                if config.gpu is None:
-                    checkpoint = torch.load(config.resume)
-                else:
-                    # Map model to be loaded to specified single gpu.
-                    loc = 'cuda:{}'.format(config.gpu)
-                    checkpoint = torch.load(config.resume, map_location=loc)
-                # config.start_epoch = checkpoint['epoch']
-                best_acc1 = checkpoint['best_acc1']
-                if config.gpu is not None:
-                    # best_acc1 may be from a checkpoint from a different GPU
-                    best_acc1 = best_acc1.to(config.gpu)
-                self.model.load_state_dict(checkpoint['state_dict_model'])
-                self.classifier.load_state_dict(checkpoint['state_dict_classifier'])
-                print("=> loaded checkpoint '{}' (epoch {})"
-                            .format(config.resume, checkpoint['epoch']))
-            else:
-                print("=> no checkpoint found at '{}'".format(config.resume))
+        if phase == 's2':
+            
+            best_acc1 = self.load_pretrained_model()
 
-        self.load_data()
+        self.load_data(config)
 
         train_loader = self.dataset.train_instance
         val_loader = self.dataset.eval
@@ -284,7 +271,7 @@ class MiSLAS(BaseModel):
             best_acc1 = max(acc1, best_acc1)
             if is_best:
                 its_ece = ece
-            print('Best Prec@1: %.3f%% ECE: %.3f%%\n' % (best_acc1, its_ece))
+            self.logger.info('Best Prec@1: %.3f%% ECE: %.3f%%\n' % (best_acc1, its_ece))
 
             if not config.multiprocessing_distributed or (config.multiprocessing_distributed
                                                         and config.rank % self.ngpus_per_node == 0):
@@ -296,7 +283,7 @@ class MiSLAS(BaseModel):
                         'state_dict_block': self.block.state_dict(),
                         'best_acc1': best_acc1,
                         'its_ece': its_ece,
-                    }, is_best, model_dir)
+                    }, is_best)
 
                 else:
                     self.__save_checkpoint({
@@ -305,28 +292,29 @@ class MiSLAS(BaseModel):
                         'state_dict_classifier': self.classifier.state_dict(),
                         'best_acc1': best_acc1,
                         'its_ece': its_ece,
-                    }, is_best, model_dir)
+                    }, is_best)
 
-    def load_data(self):
+    def load_data(self, config):
         # Data loading code
+        data_path = f'{self.base_dir}/data/CVData/{self.dataset_name}'
         if self.dataset_name == 'cifar10_lt':
-            self.dataset = CIFAR10_LT(config.distributed, root=config.data_path, imb_factor=config.imb_factor,
+            self.dataset = CIFAR10_LT(config.distributed, root=data_path, imb_factor=config.imb_factor,
                                 batch_size=config.batch_size, num_works=config.workers)
 
         elif self.dataset_name == 'cifar100_lt':
-            self.dataset = CIFAR100_LT(config.distributed, root=config.data_path, imb_factor=config.imb_factor,
+            self.dataset = CIFAR100_LT(config.distributed, root=data_path, imb_factor=config.imb_factor,
                                 batch_size=config.batch_size, num_works=config.workers)
 
         elif self.dataset_name == 'places_lt':
-            self.dataset = Places_LT(config.distributed, root=config.data_path,
+            self.dataset = Places_LT(config.distributed, root=data_path,
                                 batch_size=config.batch_size, num_works=config.workers)
 
         elif self.dataset_name == 'imagenet_lt':
-            self.dataset = ImageNet_LT(config.distributed, root=config.data_path,
+            self.dataset = ImageNet_LT(config.distributed, root=data_path,
                                 batch_size=config.batch_size, num_works=config.workers)
 
         elif self.dataset_name == 'inatural2018_lt':
-            self.dataset = iNatural2018(config.distributed, root=config.data_path,
+            self.dataset = iNatural2018(config.distributed, root=data_path,
                             batch_size=config.batch_size, num_works=config.workers)
 
     def __s1_train_model(self, train_loader, epoch, config):
@@ -351,9 +339,13 @@ class MiSLAS(BaseModel):
         training_data_num = len(train_loader.dataset)
         end_steps = int(training_data_num / train_loader.batch_size)
 
+        end = time.time()
         for i, (images, target) in enumerate(train_loader):
             if i > end_steps:
                 break
+
+            # measure data loading time
+            data_time.update(time.time() - end)
 
             if torch.cuda.is_available():
                 images = images.cuda(config.gpu, non_blocking=True)
@@ -392,8 +384,8 @@ class MiSLAS(BaseModel):
             loss.backward()
             self.optimizer.step()
 
-            # if i % config.print_freq == 0:
-            #     progress.display(i, logger)
+            if i % config.print_freq == 0:
+                progress.display(i, self.logger)
 
     def __s2_train_model(self, train_loader, epoch, config):
         batch_time = AverageMeter('Time', ':6.3f')
@@ -423,9 +415,14 @@ class MiSLAS(BaseModel):
                 self.model.eval()
         self.classifier.train()
 
+        end = time.time()
+
         for i, (images, target) in enumerate(train_loader):
             if i > end_steps:
                 break
+
+            # measure data loading time
+            data_time.update(time.time() - end)
 
             if torch.cuda.is_available():
                 images = images.cuda(config.gpu, non_blocking=True)
@@ -462,8 +459,8 @@ class MiSLAS(BaseModel):
             loss.backward()
             self.optimizer.step()
 
-            # if i % config.print_freq == 0:
-            #     progress.display(i, logger)
+            if i % config.print_freq == 0:
+                progress.display(i, self.logger)
 
     def __validate(self, val_loader, config):
         batch_time = AverageMeter('Time', ':6.3f')
@@ -519,27 +516,27 @@ class MiSLAS(BaseModel):
                 pred_class = np.append(pred_class, pred_class_part.cpu().numpy())
                 true_class = np.append(true_class, target.cpu().numpy())
 
-                # if i % config.print_freq == 0:
-                #     progress.display(i, logger)
+                if i % config.print_freq == 0:
+                    progress.display(i, self.logger)
 
             acc_classes = correct / class_num
             head_acc = acc_classes[config.head_class_idx[0]:config.head_class_idx[1]].mean() * 100
 
             med_acc = acc_classes[config.med_class_idx[0]:config.med_class_idx[1]].mean() * 100
             tail_acc = acc_classes[config.tail_class_idx[0]:config.tail_class_idx[1]].mean() * 100
-            print('* Acc@1 {top1.avg:.3f}% Acc@5 {top5.avg:.3f}% HAcc {head_acc:.3f}% MAcc {med_acc:.3f}% TAcc {tail_acc:.3f}%.'.format(top1=top1, top5=top5, head_acc=head_acc, med_acc=med_acc, tail_acc=tail_acc))
+            self.logger.info('* Acc@1 {top1.avg:.3f}% Acc@5 {top5.avg:.3f}% HAcc {head_acc:.3f}% MAcc {med_acc:.3f}% TAcc {tail_acc:.3f}%.'.format(top1=top1, top5=top5, head_acc=head_acc, med_acc=med_acc, tail_acc=tail_acc))
 
             cal = calibration(true_class, pred_class, confidence, num_bins=15)
-            print('* ECE   {ece:.3f}%.'.format(ece=cal['expected_calibration_error'] * 100))
+            self.logger.info('* ECE   {ece:.3f}%.'.format(ece=cal['expected_calibration_error'] * 100))
 
         return top1.avg, cal['expected_calibration_error'] * 100
 
 
-    def __save_checkpoint(state, is_best, model_dir):
-        filename = model_dir + '/current.pth.tar'
+    def __save_checkpoint(self, state, is_best):
+        filename = self.model_dir + '/current.pth.tar'
         torch.save(state, filename)
-        # if is_best:
-        #     shutil.copyfile(filename, model_dir + '/model_best.pth.tar')
+        if is_best:
+            torch.save(filename, self.model_dir + '/model_best.pth.tar')
 
 
     def __adjust_learning_rate(self, epoch, config, phase):
@@ -575,3 +572,34 @@ class MiSLAS(BaseModel):
                     param_group['lr'] = config.lr_factor * lr
                 else:
                     param_group['lr'] = 1.00 * lr
+
+    def load_pretrained_model(self, config = None):
+
+        if config is None:
+
+            config = self.s2_config
+
+        best_acc1 = 0
+        
+        checkpoint_file = f'{self.model_dir}/model_best.pth.tar'
+        if os.path.isfile(checkpoint_file):
+            self.logger.info("=> loading checkpoint '{}'".format(checkpoint_file))
+            if config.gpu is None:
+                checkpoint = torch.load(checkpoint_file)
+            else:
+                # Map model to be loaded to specified single gpu.
+                loc = 'cuda:{}'.format(config.gpu)
+                checkpoint = torch.load(checkpoint_file, map_location=loc)
+            # config.start_epoch = checkpoint['epoch']
+            best_acc1 = checkpoint['best_acc1']
+            if config.gpu is not None:
+                # best_acc1 may be from a checkpoint from a different GPU
+                best_acc1 = best_acc1.to(config.gpu)
+            self.model.load_state_dict(checkpoint['state_dict_model'])
+            self.classifier.load_state_dict(checkpoint['state_dict_classifier'])
+            self.logger.info("=> loaded checkpoint '{}' (epoch {})"
+                        .format(checkpoint_file, checkpoint['epoch']))
+        else:
+            self.logger.info("=> no checkpoint found at '{}'".format(checkpoint_file))
+
+        return best_acc1
