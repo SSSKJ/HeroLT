@@ -4,9 +4,9 @@ from ...configs.MiLAS import update_config
 from ..Models import MiSLAS_resnet
 from ..Models import MiSLAS_resnet_cifar
 from ..Models import MiSLAS_resnet_places
-from ...tools.loaders import *
+from ..Dataloaders.MiSLASDataLoader import CIFAR10_LT, CIFAR100_LT, Places_LT, ImageNet_LT, iNatural2018
 from ...tools import LearnableWeightScaling, LabelAwareSmoothing
-from ...utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion
+from ...utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion, topk_accuracy
 from ...utils.logger import get_logger
 
 import torch
