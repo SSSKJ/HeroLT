@@ -3,7 +3,7 @@ from ...utils import accuracy
 import torch
 
 
-class BBN_Combiner:
+class Combiner:
     def __init__(self, cfg, device):
         self.cfg = cfg
         self.type = cfg.TRAIN.COMBINER.TYPE
