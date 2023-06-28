@@ -17,5 +17,5 @@ from .base import (  # noqa
     ScipyDcmF32,  # noqa
     ScipyCoordinateSparseAllocator,  # noqa
     ScipyCompressedSparseAllocator,  # noqa
-    clib,  # noqa
+    # clib,  # noqa
 )  # noqa
