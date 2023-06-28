@@ -20,7 +20,7 @@ import dataclasses as dc
 import numpy as np
 from ... import pecos
 import scipy.sparse as smat
-from pecos.core import (
+from ...pecos.core import (
     ScipyCompressedSparseAllocator,
     ScipyCscF32,
     ScipyCsrF32,
