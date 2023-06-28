@@ -1,4 +1,4 @@
-name: pt1.2_xmlc_transformer
+name: herolt-nlp
 channels:
   - pytorch
   - defaults
@@ -85,5 +85,5 @@ dependencies:
     - transformers==2.2.0
     - typed-ast==1.4.1
     - urllib3==1.25.7
-prefix: /home/ubuntu/anaconda3/envs/pt1.2_xmlc_transformer
+prefix: /home/skjguan/.conda/envs/herolt-nlp
 
