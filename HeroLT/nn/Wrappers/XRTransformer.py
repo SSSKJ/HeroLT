@@ -86,57 +86,71 @@ class XRTransformer(BaseModel):
     
     def load_data(self, phase):
         
-        if phase == 'train' and (self.X_trn is None or self.Y_trn is None or self.trn_corpus is None):
-            self.logger.info("| loading data begin...")
-            start_time = time.time()
-            # Load training feature
-            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.trn.npz'):
-                self.X_trn = smat_util.load_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz', dtype=np.float32)
-                self.logger.info("Loaded training feature matrix with shape={}".format(self.X_trn.shape))
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.trn.npz exists')
-
-            # Load training labels
-            if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
-                self.Y_trn = smat_util.load_matrix(f'{self.data_dir}/Y.trn.npz', dtype=np.float32)
-                self.logger.info("Loaded training label matrix with shape={}".format(self.Y_trn.shape))
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+        if phase == 'train':
             
-            if os.path.exists(f'{self.data_dir}/X.trn.txt'):
-                # Load training texts
-                self.trn_corpus = Preprocessor.load_data_from_file(
-                    f'{self.data_dir}/X.trn.txt',
-                    label_text_path=None,
-                    text_pos=0,
-                )["corpus"]
-                self.logger.info("Loaded {} training sequences".format(len(self.trn_corpus)))
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.trn.txt exists')
-            
-            run_time_io = time.time() - start_time
-            self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_io))
+            if (self.X_trn is None or self.Y_trn is None or self.trn_corpus is None):
+                self.logger.info("| loading data begin...")
+                start_time = time.time()
+                # Load training feature
+                if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.trn.npz'):
+                    self.X_trn = smat_util.load_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz', dtype=np.float32)
+                    self.logger.info("Loaded training feature matrix with shape={}".format(self.X_trn.shape))
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.trn.npz exists')
 
-        elif phase == 'predict' and (self.X_tst is None or self.tst_corpus is None):
-
-            # Load data
-            self.logger.info("| loading data begin...")
-            start_time = time.time()
-
-            # load instance feature and text
-            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.tst.npz'):
-                self.X_tst = smat_util.load_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
-                self.logger.info("Loaded testing feature matrix with shape={}".format(self.Y_trn.shape))
-            else:
-                raise RuntimeError(f'Can\'t find any testing Data, please check if {self.data_dir}/tfidf-attnxml/X.tst.npz exists')
+                # Load training labels
+                if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
+                    self.Y_trn = smat_util.load_matrix(f'{self.data_dir}/Y.trn.npz', dtype=np.float32)
+                    self.logger.info("Loaded training label matrix with shape={}".format(self.Y_trn.shape))
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+                
+                if os.path.exists(f'{self.data_dir}/X.trn.txt'):
+                    # Load training texts
+                    self.trn_corpus = Preprocessor.load_data_from_file(
+                        f'{self.data_dir}/X.trn.txt',
+                        label_text_path=None,
+                        text_pos=0,
+                    )["corpus"]
+                    self.logger.info("Loaded {} training sequences".format(len(self.trn_corpus)))
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.trn.txt exists')
+                
+                run_time_io = time.time() - start_time
+                self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_io))
+                self.logger.info('Finish Loading Data for training')
             
-            if os.path.exists(f'{self.data_dir}/X.tst.txt'):
-                self.tst_corpus = Preprocessor.load_data_from_file(f'{self.data_dir}/X.tst.txt', label_text_path=None, text_pos=0)["corpus"]
             else:
-                raise RuntimeError(f'Can\'t find any testing Data, please check if {self.data_dir}/X.tst.txt exists')
+
+                self.logger.info('Data for training was loaded')
+
+        elif phase == 'predict':
             
-            run_time_data = time.time() - start_time
-            self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+            if (self.X_tst is None or self.tst_corpus is None):
+
+                # Load data
+                self.logger.info("| loading data begin...")
+                start_time = time.time()
+
+                # load instance feature and text
+                if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.tst.npz'):
+                    self.X_tst = smat_util.load_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
+                    self.logger.info("Loaded testing feature matrix with shape={}".format(self.Y_trn.shape))
+                else:
+                    raise RuntimeError(f'Can\'t find any testing Data, please check if {self.data_dir}/tfidf-attnxml/X.tst.npz exists')
+                
+                if os.path.exists(f'{self.data_dir}/X.tst.txt'):
+                    self.tst_corpus = Preprocessor.load_data_from_file(f'{self.data_dir}/X.tst.txt', label_text_path=None, text_pos=0)["corpus"]
+                else:
+                    raise RuntimeError(f'Can\'t find any testing Data, please check if {self.data_dir}/X.tst.txt exists')
+                
+                run_time_data = time.time() - start_time
+                self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+                self.logger.info('Finish Loading Data for prediction')
+            
+            else:
+
+                self.logger.info('Data for prediction was loaded')
         else:
             raise RuntimeError(f'Unkown phase {phase}')
 

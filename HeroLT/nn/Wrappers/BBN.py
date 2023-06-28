@@ -61,37 +61,54 @@ class BBN(BaseModel):
     
     def load_data(self, phase = 'train'):
 
-        if phase == 'train' and (self.trainLoader is None or self.validLoader is None):
+        if phase == 'train':
+            
+            if (self.trainLoader is None or self.validLoader is None):
                 
-            self.train_set = eval(self.config.DATASET.DATASET)("train", self.config)
-            self.trainLoader = DataLoader(
-                self.train_set,
-                batch_size=self.config.TRAIN.BATCH_SIZE,
-                shuffle=self.config.TRAIN.SHUFFLE,
-                num_workers=self.config.TRAIN.NUM_WORKERS,
-                pin_memory=self.config.PIN_MEMORY,
-                drop_last=True
-            )
+                self.train_set = eval(self.config.DATASET.DATASET)("train", self.config)
+                self.trainLoader = DataLoader(
+                    self.train_set,
+                    batch_size=self.config.TRAIN.BATCH_SIZE,
+                    shuffle=self.config.TRAIN.SHUFFLE,
+                    num_workers=self.config.TRAIN.NUM_WORKERS,
+                    pin_memory=self.config.PIN_MEMORY,
+                    drop_last=True
+                )
 
-            self.valid_set = eval(self.config.DATASET.DATASET)("valid", self.config)
-            self.validLoader = DataLoader(
-                self.valid_set,
-                batch_size=self.config.TEST.BATCH_SIZE,
-                shuffle=False,
-                num_workers=self.config.TEST.NUM_WORKERS,
-                pin_memory=self.config.PIN_MEMORY,
-            )
+                self.valid_set = eval(self.config.DATASET.DATASET)("valid", self.config)
+                self.validLoader = DataLoader(
+                    self.valid_set,
+                    batch_size=self.config.TEST.BATCH_SIZE,
+                    shuffle=False,
+                    num_workers=self.config.TEST.NUM_WORKERS,
+                    pin_memory=self.config.PIN_MEMORY,
+                )
 
-        elif phase == 'eval' and (self.testLoader is None):
+                self.logger.info('Finish Loading Data for training')
+            
+            else:
 
-            self.test_set = eval(self.config.DATASET.DATASET)("valid", self.config)
-            self.testLoader = DataLoader(
-                self.test_set,
-                batch_size=self.config.TEST.BATCH_SIZE,
-                shuffle=False,
-                num_workers=self.config.TEST.NUM_WORKERS,
-                pin_memory=self.config.PIN_MEMORY,
-            )
+                self.logger.info('Data for training was loaded')
+
+        elif phase == 'eval':
+            
+            if (self.testLoader is None):
+
+                self.test_set = eval(self.config.DATASET.DATASET)("valid", self.config)
+                self.testLoader = DataLoader(
+                    self.test_set,
+                    batch_size=self.config.TEST.BATCH_SIZE,
+                    shuffle=False,
+                    num_workers=self.config.TEST.NUM_WORKERS,
+                    pin_memory=self.config.PIN_MEMORY,
+                )
+
+                self.logger.info('Finish Loading Data for prediction')
+            
+            else:
+
+                self.logger.info('Data for prediction was loaded')
+
 
         else:
             raise RuntimeError(f'Unkown phase {phase}')

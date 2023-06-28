@@ -60,42 +60,57 @@ class XRLinear(BaseModel):
     ## todo
     def load_data(self, phase):
         
-        if phase == 'train' and (self.X is None or self.Y is None):
-            self.logger.info("| loading data begin...")
-            start_time = time.time()
-            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.trn.npz'):
-                self.X = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz') ## todo: change into right name
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.trn.npz exists')
-            self.X = normalize(self.X, axis=1, norm="l2")
-
-            if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
-                self.Y = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.trn.npz', for_training=True) ## todo: change into right name
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+        if phase == 'train':
             
-            run_time_io = time.time() - start_time
-            self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_io))
+            if (self.X is None or self.Y is None):
 
-        elif phase == 'predict' and (self.Xt is None or self.Yt is None):
+                self.logger.info("| loading data begin...")
+                start_time = time.time()
+                if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.trn.npz'):
+                    self.X = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.trn.npz') ## todo: change into right name
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.trn.npz exists')
+                self.X = normalize(self.X, axis=1, norm="l2")
 
-            # Load data
-            self.logger.info("| loading data begin...")
-            start_time = time.time()
-            if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.tst.npz'):
-                self.Xt = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.tst.npz exists')
+                if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
+                    self.Y = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.trn.npz', for_training=True) ## todo: change into right name
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+                
+                run_time_io = time.time() - start_time
+                self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_io))
+                self.logger.info('Finish Loading Data for training')
             
-            self.Xt = normalize(self.Xt, axis=1, norm="l2")
-
-            if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
-                self.Yt = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.tst.npz')
             else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+
+                self.logger.info('Data for training was loaded')
+
+        elif phase == 'predict':
             
-            run_time_data = time.time() - start_time
-            self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+            if (self.Xt is None or self.Yt is None):
+
+                # Load data
+                self.logger.info("| loading data begin...")
+                start_time = time.time()
+                if os.path.exists(f'{self.data_dir}/tfidf-attnxml/X.tst.npz'):
+                    self.Xt = XLinearModel.load_feature_matrix(f'{self.data_dir}/tfidf-attnxml/X.tst.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/tfidf-attnxml/X.tst.npz exists')
+                
+                self.Xt = normalize(self.Xt, axis=1, norm="l2")
+
+                if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
+                    self.Yt = XLinearModel.load_label_matrix(f'{self.data_dir}/Y.tst.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+                
+                run_time_data = time.time() - start_time
+                self.logger.info("| loading data finsihed | time(s) {:9.4f}".format(run_time_data))
+                self.logger.info('Finish Loading Data for prediction')
+            
+            else:
+
+                self.logger.info('Data for prediction was loaded')
         else:
             raise RuntimeError(f'Unkown phase {phase}')
 

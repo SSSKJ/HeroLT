@@ -93,68 +93,93 @@ class XTransformer(BaseModel):
 
     def load_data(self, phase):
             
-        if phase == 'train' and (self.X is None or self.Y is None or self.C is None or self.Z_pred is None):
+        if phase == 'train':
+            
+            if (self.X is None or self.Y is None or self.C is None or self.Z_pred is None):
 
-            if os.path.exists(f'{self.data_dir}/X.trn.npz'):
-                X1 = HierarchicalMLModel.load_feature_matrix(f'{self.data_dir}/X.trn.npz')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.trn.npz exists')
-            
-            if os.path.exists(f'{self.matcher_dir}/trn_embeddings.npy'):
-                X2 = HierarchicalMLModel.load_feature_matrix(f'{self.matcher_dir}/trn_embeddings.npy')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/trn_embeddings.npy exists')
-            
-            self.X = smat.hstack([sk_normalize(X1, axis=1), sk_normalize(X2, axis=1)]).tocsr()
-            self.X = sk_normalize(self.X, axis=1, copy=False)
+                if os.path.exists(f'{self.data_dir}/X.trn.npz'):
+                    X1 = HierarchicalMLModel.load_feature_matrix(f'{self.data_dir}/X.trn.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.trn.npz exists')
+                
+                if os.path.exists(f'{self.matcher_dir}/trn_embeddings.npy'):
+                    X2 = HierarchicalMLModel.load_feature_matrix(f'{self.matcher_dir}/trn_embeddings.npy')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/trn_embeddings.npy exists')
+                
+                self.X = smat.hstack([sk_normalize(X1, axis=1), sk_normalize(X2, axis=1)]).tocsr()
+                self.X = sk_normalize(self.X, axis=1, copy=False)
 
-            if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
-                self.Y = smat.load_npz(f'{self.data_dir}/Y.trn.npz')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
-            
-            label_feat = LabelEmbeddingFactory.create(self.Y, self.X, method = None, dtype=self.X.dtype)
+                if os.path.exists(f'{self.data_dir}/Y.trn.npz'):
+                    self.Y = smat.load_npz(f'{self.data_dir}/Y.trn.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.trn.npz exists')
+                
+                label_feat = LabelEmbeddingFactory.create(self.Y, self.X, method = None, dtype=self.X.dtype)
 
-            if os.path.exists(f'{self.output_dir}/indexer/code.npz'):
-                self.C = Indexer.load_indexed_code(f'{self.output_dir}/indexer/code.npz', label_feat)
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.output_dir}/indexer/code.npz exists')
+                if os.path.exists(f'{self.output_dir}/indexer/code.npz'):
+                    self.C = Indexer.load_indexed_code(f'{self.output_dir}/indexer/code.npz', label_feat)
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.output_dir}/indexer/code.npz exists')
+                
+                if os.path.exists(f'{self.matcher_dir}/C_trn_pred.npz'):
+                    self.Z_pred = smat.load_npz(f'{self.matcher_dir}/C_trn_pred.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.output_dir}/indexer/code.npz exists')
+                
+                self.logger.info('Finish Loading Data for training')
             
-            if os.path.exists(f'{self.matcher_dir}/C_trn_pred.npz'):
-                self.Z_pred = smat.load_npz(f'{self.matcher_dir}/C_trn_pred.npz')
             else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.output_dir}/indexer/code.npz exists')
-            
-        elif phase == 'predict' and (self.Xt is None or self.Yt is None or self.csr_codes is None):
 
-            if os.path.exists(f'{self.data_dir}/X.tst.npz'):
-                X1 = HierarchicalMLModel.load_feature_matrix(f'{self.data_dir}/X.tst.npz')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.tst.npz exists')
+                self.logger.info('Data for training was loaded')
+                
             
-            if os.path.exists(f'{self.matcher_dir}/tst_embeddings.npy'):
-                X2 = HierarchicalMLModel.load_feature_matrix(f'{self.matcher_dir}/tst_embeddings.npy')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/tst_embeddings.npy exists')
+        elif phase == 'predict':
 
-            self.Xt = smat.hstack([sk_normalize(X1, axis=1), sk_normalize(X2, axis=1)]).tocsr()
+            if (self.Xt is None or self.Yt is None or self.csr_codes is None):
 
-            if os.path.exists(f'{self.matcher_dir}/C_tst_pred.npz'):
-                self.csr_codes = smat.load_npz(f'{self.matcher_dir}/C_tst_pred.npz')
-            else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/C_tst_pred.npz exists')
+                if os.path.exists(f'{self.data_dir}/X.tst.npz'):
+                    X1 = HierarchicalMLModel.load_feature_matrix(f'{self.data_dir}/X.tst.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/X.tst.npz exists')
+                
+                if os.path.exists(f'{self.matcher_dir}/tst_embeddings.npy'):
+                    X2 = HierarchicalMLModel.load_feature_matrix(f'{self.matcher_dir}/tst_embeddings.npy')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/tst_embeddings.npy exists')
+
+                self.Xt = smat.hstack([sk_normalize(X1, axis=1), sk_normalize(X2, axis=1)]).tocsr()
+
+                if os.path.exists(f'{self.matcher_dir}/C_tst_pred.npz'):
+                    self.csr_codes = smat.load_npz(f'{self.matcher_dir}/C_tst_pred.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.matcher_dir}/C_tst_pred.npz exists')
+                
+                if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
+                    self.Yt = smat.load_npz(f'{self.data_dir}/Y.tst.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
             
-            if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
-                self.Yt = smat.load_npz(f'{self.data_dir}/Y.tst.npz')
+                self.logger.info('Finish Loading Data for prediction')
+            
             else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+
+                self.logger.info('Data for prediction was loaded')
         
-        elif phase == 'eval' and (self.Yt is None):
+        elif phase == 'eval':
 
-            if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
-                self.Yt = smat.load_npz(f'{self.data_dir}/Y.tst.npz')
+            if (self.Yt is None):
+
+                if os.path.exists(f'{self.data_dir}/Y.tst.npz'):
+                    self.Yt = smat.load_npz(f'{self.data_dir}/Y.tst.npz')
+                else:
+                    raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+                
+                self.logger.info('Finish Loading Data for evaluation')
+            
             else:
-                raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
+
+                self.logger.info('Data for evaluation was loaded')
 
 
         else:
