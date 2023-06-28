@@ -523,7 +523,7 @@ class corelib(object):
 
     def __init__(self, dirname, soname, forced_rebuild=False):
         self.clib_float32 = corelib.load_dynamic_library(
-            dirname, soname, forced_rebuild=forced_rebuild
+            dirname, soname + "_float32", forced_rebuild=forced_rebuild
         )
         self.link_xlinear_methods()
         self.link_sparse_operations()
