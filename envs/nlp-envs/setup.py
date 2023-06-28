@@ -25,8 +25,8 @@ def get_blas_link_args(blas='lapack_opt'):
         blas_link_args = rpath_cmd + ['-framework Accelerate', '-liomp5']
     return blas_link_args
 
-source_codes = ["xbert/corelib/rf_linear.cpp"]
-headers = ["xbert/corelib/rf_matrix.h"]
+source_codes = ["../../HeroLT/nn/xbert/corelib/rf_linear.cpp"]
+headers = ["../../HeroLT/nn/xbert/corelib/rf_matrix.h"]
 include_dirs = ["trmf/corelib"]
 libname = "xbert.corelib.rf_linear"
 blas_link_args = get_blas_link_args()
