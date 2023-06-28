@@ -512,13 +512,11 @@ class corelib(object):
         try:
             if forced_rebuild:
                 check_output("make -C {} clean lib".format(dirname), shell=True)
-                print(dirname)
             path_to_so = glob(os.path.join(dirname, soname) + "*.so")[0]
             _c_lib = CDLL(path_to_so)
         except BaseException:
             try:
                 check_output("make -C {} clean lib".format(dirname), shell=True)
-                print(os.path.join(dirname, soname) + "*.so")
                 path_to_so = glob(os.path.join(dirname, soname) + "*.so")[0]
                 _c_lib = CDLL(path_to_so)
             except BaseException:
@@ -1685,4 +1683,4 @@ class corelib(object):
         return self.ann_hnsw_fn_dict[data_type, metric_type]
 
 
-# clib = corelib(os.path.join(os.path.dirname(os.path.abspath(pecos.__file__)), "core"), "libpecos")
+clib = corelib(os.path.join(os.path.dirname(os.path.abspath(pecos.__file__)), "core"), "libpecos")
