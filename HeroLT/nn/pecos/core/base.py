@@ -1685,4 +1685,4 @@ class corelib(object):
         return self.ann_hnsw_fn_dict[data_type, metric_type]
 
 
-clib = corelib(os.path.join(os.path.dirname(os.path.abspath(pecos.__file__)), "core"), "libpecos")
+# clib = corelib(os.path.join(os.path.dirname(os.path.abspath(pecos.__file__)), "core"), "libpecos")
