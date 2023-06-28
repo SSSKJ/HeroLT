@@ -62,7 +62,7 @@ class XTransformer(BaseModel):
                 self.__train_ranker()
 
                 # predict final label ranking, using transformer's predicted cluster scores
-                self.predict()
+                self.__predict()
 
         # final eval
         self.eval()
@@ -127,11 +127,11 @@ class XTransformer(BaseModel):
                 else:
                     raise RuntimeError(f'Can\'t find any Training Data, please check if {self.output_dir}/indexer/code.npz exists')
                 
-                self.logger.info('Finish Loading Data for training')
+            self.logger.info('Finish Loading Data for training')
             
-            else:
+            # else:
 
-                self.logger.info('Data for training was loaded')
+            #     self.logger.info('Data for training was loaded')
                 
             
         elif phase == 'predict':
@@ -160,11 +160,11 @@ class XTransformer(BaseModel):
                 else:
                     raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
             
-                self.logger.info('Finish Loading Data for prediction')
+            self.logger.info('Finish Loading Data for prediction')
             
-            else:
+            # else:
 
-                self.logger.info('Data for prediction was loaded')
+            #     self.logger.info('Data for prediction was loaded')
         
         elif phase == 'eval':
 
@@ -175,11 +175,11 @@ class XTransformer(BaseModel):
                 else:
                     raise RuntimeError(f'Can\'t find any Training Data, please check if {self.data_dir}/Y.tst.npz exists')
                 
-                self.logger.info('Finish Loading Data for evaluation')
+            self.logger.info('Finish Loading Data for evaluation')
             
-            else:
+            # else:
 
-                self.logger.info('Data for evaluation was loaded')
+            #     self.logger.info('Data for evaluation was loaded')
 
 
         else:
