@@ -51,6 +51,7 @@ class XTransformer(BaseModel):
         for label_name in self.label_name_arr:
 
             self.output_dir = f'{self.output_path}/{label_name}'
+            
             for model_name in self.model_name_arr:
 
                 self.matcher_dir = f'{self.output_dir}/matcher/{model_name}'
@@ -58,6 +59,8 @@ class XTransformer(BaseModel):
 
                 os.makedirs(self.ranker_dir, exist_ok = True)
                 
+                self.logger.info(f'Training ranker for {model_name} with {label_name}')
+
                 # train linear ranker
                 self.__train_ranker()
 
