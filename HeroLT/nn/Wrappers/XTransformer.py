@@ -51,7 +51,7 @@ class XTransformer(BaseModel):
         for label_name in self.label_name_arr:
 
             self.output_dir = f'{self.output_path}/{label_name}'
-            
+
             for model_name in self.model_name_arr:
 
                 self.matcher_dir = f'{self.output_dir}/matcher/{model_name}'
@@ -64,9 +64,10 @@ class XTransformer(BaseModel):
                 # train linear ranker
                 self.__train_ranker()
 
+                self.logger.info(f'Predicting for {model_name} with {label_name}')
                 # predict final label ranking, using transformer's predicted cluster scores
                 self.__predict()
-
+                
         # final eval
         self.eval()
 
