@@ -1,7 +1,7 @@
-from . import BaseModel
-from ..Models import GCN
+from .BaseModel import BaseModel
+from ..Models.GCN import GCN
 from ..Models.ImGAGN_Generator import Generator
-from ..Dataloaders import GraphDataLoader
+from ..Dataloaders.GraphDataLoader import GraphDataLoader
 from ...utils.logger import get_logger
 from ...utils import performance_measure, normalize, sparse_mx_to_torch_sparse_tensor
 

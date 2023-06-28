@@ -1,5 +1,5 @@
 from ..Datasets.MiSLASDataset import IMBALANCECIFAR10, IMBALANCECIFAR100, LT_Dataset, LT_Dataset_Eval
-from ..Samplers import ClassAwareSampler
+from ..Samplers.ClassAwareSampler import ClassAwareSampler
 
 import torch
 import torchvision

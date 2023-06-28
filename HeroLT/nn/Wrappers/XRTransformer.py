@@ -1,4 +1,4 @@
-from . import BaseModel
+from .BaseModel import BaseModel
 from ..pecos.xmc.xtransformer.model import XTransformer
 from ..pecos.xmc.xtransformer.module import MLProblemWithText
 from ..pecos.utils import smat_util, torch_util

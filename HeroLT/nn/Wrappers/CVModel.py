@@ -1,4 +1,4 @@
-from . import BaseModel
+from .BaseModel import BaseModel
 from ...utils import mic_acc_cal, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, class_count, F_measure
 from ...utils.logger import Logger
 

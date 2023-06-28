@@ -1,9 +1,9 @@
-from . import BaseModel
-from ..Models import tailGNN
-from ..Layers import Discriminator
+from .BaseModel import BaseModel
+from ..Models.tailGNN import tailGNN
+from ..Layers.Discriminator import Discriminator
 from ...utils import link_dropout, normalize_output, performance_measure
 from ...utils.logger import get_logger
-from ..Dataloaders import GraphDataLoader
+from ..Dataloaders.GraphDataLoader import GraphDataLoader
 
 import torch
 from torch import nn

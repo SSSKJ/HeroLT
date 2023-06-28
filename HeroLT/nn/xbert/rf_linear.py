@@ -15,7 +15,7 @@ import scipy as sp
 import scipy.sparse as smat
 from sklearn.preprocessing import normalize as sk_normalize
 
-import indexer
+from . import indexer
 from .rf_util import (
     PyMatrix,
     fillprototype,

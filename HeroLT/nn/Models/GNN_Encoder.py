@@ -1,5 +1,5 @@
-from ..Modules import GraphAttConv
-from ..Layers import GraphConvolution
+from ..Modules.GraphAttConv import GraphAttConv
+from ..Layers.GraphConvolution import GraphConvolution
 
 from torch import nn
 

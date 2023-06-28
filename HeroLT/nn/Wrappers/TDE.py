@@ -1,7 +1,7 @@
-from . import BaseModel
-from ..Dataloaders import TDEDataLoader
-from ..Samplers import ClassAwareSampler
-from ..Schedulers import WarmupMultiStepLR
+from .BaseModel import BaseModel
+from ..Dataloaders.TDEDataLoader import TDEDataLoader
+from ..Samplers.ClassAwareSampler import ClassAwareSampler
+from ..Schedulers.WarmupMultiStepLR import WarmupMultiStepLR
 from ...utils.logger import Logger
 from ...utils import source_import, torch2numpy, mic_acc_cal, get_priority, shot_acc, weighted_mic_acc_cal, weighted_shot_acc, F_measure, print_grad_norm
 

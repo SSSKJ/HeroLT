@@ -14,6 +14,8 @@ from sklearn.preprocessing import normalize as sk_normalize
 
 from .rf_util import PyMatrix, fillprototype, load_dynamic_library
 
+import math
+
 class RandomProject(object):
 
     """Encode and decode a label into a K-way D-dimensional code.

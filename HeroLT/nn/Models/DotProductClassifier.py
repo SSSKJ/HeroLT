@@ -11,10 +11,10 @@ this source tree.
 Copyright (c) 2019, Zhongqi Miao
 All rights reserved.
 """
-
+from ...utils import init_weights
 
 import torch.nn as nn
-from ...utils import init_weights
+
 from os import path
 
 class DotProduct_Classifier(nn.Module):

@@ -517,6 +517,7 @@ class corelib(object):
         except BaseException:
             try:
                 check_output("make -C {} clean lib".format(dirname), shell=True)
+                print(os.path.join(dirname, soname) + "*.so")
                 path_to_so = glob(os.path.join(dirname, soname) + "*.so")[0]
                 _c_lib = CDLL(path_to_so)
             except BaseException:

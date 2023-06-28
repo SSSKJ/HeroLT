@@ -1,13 +1,15 @@
 from . import BaseModel
 from ...configs.BBN import _C as config
 from ...configs.BBN import update_config
-from ..Schedulers import WarmupMultiStepLR
+from ..Schedulers.WarmupMultiStepLR import WarmupMultiStepLR
 from ..Models.BBN_Combiner import Combiner
 from ..Models.BBN_Network import Network
 from ...utils import accuracy, AverageMeter, FusionMatrix
 from ...utils.logger import get_logger
 from ..Datasets.BBNDataset import IMBALANCECIFAR10, IMBALANCECIFAR100, iNaturalist
-from ..Loss import CSCE, CrossEntropy, LDAMLoss
+from ..Loss.CSCE import CSCE
+from ..Loss.CrossEntropy import CrossEntropy
+from ..Loss.LDAMLoss import LDAMLoss
 
 
 import torch

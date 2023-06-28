@@ -1,5 +1,5 @@
-from ..Layers import GraphConvolution
-from ..Modules import Attention
+from ..Layers.GraphConvolution import GraphConvolution
+from ..Modules.Attention import Attention
 
 import torch
 import torch.nn as nn

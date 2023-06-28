@@ -1,7 +1,7 @@
-from . import BaseModel
-from ..Dataloaders import GraphDataLoader
+from .BaseModel import BaseModel
+from ..Dataloaders.GraphDataLoader import GraphDataLoader
 from ...utils.logger import get_logger
-from ..Models import lTE4G
+from ..Models.lTE4G import lTE4G
 from ...utils import seed_everything, performance_measure, scheduler
 
 import torch

@@ -1,5 +1,6 @@
-from ..Layers import GraphConvolution
-from ..Modules import Relation, Relationv2
+from ..Layers.GraphConvolution import GraphConvolution
+from ..Modules.Relation import Relation
+from ..Modules.Relationv2 import Relationv2
 from .TailGNN_Generator import Generator
 
 import torch

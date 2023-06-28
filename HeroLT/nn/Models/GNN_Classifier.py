@@ -1,4 +1,4 @@
-from ..Layers import GraphConvolution
+from ..Layers.GraphConvolution import GraphConvolution
 
 from torch import nn
 

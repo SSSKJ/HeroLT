@@ -1,10 +1,7 @@
-from . import BaseModel
+from .BaseModel import BaseModel
 from ...utils.logger import get_logger
-from ..pecos.core import XLINEAR_SOLVERS
-from ..pecos.utils import cli
-from ..pecos.utils import smat_util, logging_util
-from ..pecos.utils.cluster_util import ClusterChain
-from ..pecos.xmc import Indexer, LabelEmbeddingFactory, PostProcessor
+from ..pecos.utils import smat_util
+from ..pecos.xmc import Indexer, LabelEmbeddingFactory
 from ..pecos.xmc.base import HierarchicalKMeans
 from ..pecos.xmc.xlinear.model import XLinearModel
 

@@ -11,7 +11,7 @@ this source tree.
 Copyright (c) 2019, Zhongqi Miao
 All rights reserved.
 """
-from ..Modules import ModulatedAttLayer
+from ..Modules.ModulatedAttLayer import ModulatedAttLayer
 
 import math
 import torch.nn as nn

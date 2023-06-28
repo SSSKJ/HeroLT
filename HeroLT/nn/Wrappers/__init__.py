@@ -29,7 +29,7 @@ except Exception as e:
     packages.append(e)
 
 if len(errors) > 0:
-    print('----------------------------Fail to load all Graph Models----------------------------')
+    print('----------------------------Fail to load Graph Models----------------------------')
     for s, e in zip(errors, packages):
         print(e)
         print(s)
@@ -75,7 +75,7 @@ except Exception as e:
     packages.append(e)
 
 if len(errors) > 0:
-    print('----------------------------Fail to load all CV Models----------------------------')
+    print('----------------------------Fail to load CV Models----------------------------')
     for s, e in zip(errors, packages):
         print(e)
         print(s)
@@ -94,14 +94,14 @@ try:
 except Exception as e:
     errors.append('File to load XRTransformer. Packages need to be installed for XRTransformer. Please reload the framework after installing the environment')
     packages.append(e)
-try:
-    from .XTransformer import XTransformer
-except Exception as e:
-    errors.append('File to load XTransformer. Packages need to be installed for XTransformer. Please reload the framework after installing the environment')
-    packages.append(e)
+# try:
+#     from .XTransformer import XTransformer
+# except Exception as e:
+#     errors.append('File to load XTransformer. Packages need to be installed for XTransformer. Please reload the framework after installing the environment')
+#     packages.append(e)
 
 if len(errors) > 0:
-    print('----------------------------Fail to load all NLP Models----------------------------')
+    print('----------------------------Fail to load NLP Models----------------------------')
     for s, e in zip(errors, packages):
         print(e)
         print(s)

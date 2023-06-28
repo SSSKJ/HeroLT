@@ -1,7 +1,7 @@
 from ...utils import source_import
-from . import CVModel
-from ..Dataloaders import DecouplingDataLoader
-from ..Samplers import ClassAwareSampler
+from .CVModel import CVModel
+from ..Dataloaders.DecouplingDataLoader import DecouplingDataLoader
+from ..Samplers.ClassAwareSampler import ClassAwareSampler
 from ...utils import torch2numpy, mic_acc_cal, get_priority
 
 import torch

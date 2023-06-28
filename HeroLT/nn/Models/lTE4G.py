@@ -1,7 +1,7 @@
 from ..Models.GNN_Classifier import Classifier
 from ..Models.GNN_Encoder import Encoder
 from ..Models.GraphSMOTE_Decoder import Decoder
-from ..Models import MLP
+from ..Models.MLP import MLP
 from ...utils import adj_mse_loss
 
 import torch

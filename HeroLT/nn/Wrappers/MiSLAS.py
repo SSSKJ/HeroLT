@@ -1,11 +1,12 @@
-from . import BaseModel
+from .BaseModel import BaseModel
 from ...configs.MiLAS import _C as config
 from ...configs.MiLAS import update_config
 from ..Models import MiSLAS_resnet
 from ..Models import MiSLAS_resnet_cifar
 from ..Models import MiSLAS_resnet_places
 from ..Dataloaders.MiSLASDataLoader import CIFAR10_LT, CIFAR100_LT, Places_LT, ImageNet_LT, iNatural2018
-from ...tools import LearnableWeightScaling, LabelAwareSmoothing
+from ...tools.LearnableWeightScaling import LearnableWeightScaling
+from ...tools.LabelAwareSmoothing import LabelAwareSmoothing
 from ...utils import AverageMeter, ProgressMeter, calibration, mixup_data, mixup_criterion, topk_accuracy
 from ...utils.logger import get_logger
 

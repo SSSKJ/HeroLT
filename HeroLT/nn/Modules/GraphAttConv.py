@@ -1,4 +1,4 @@
-from ..Layers import GraphAttConvOneHead
+from ..Layers.GraphAttConvOneHead import GraphAttConvOneHead
 
 import torch
 from torch import nn

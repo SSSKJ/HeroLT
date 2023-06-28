@@ -1,5 +1,5 @@
-from . import BaseModel
-from ..Dataloaders import OLTRDataLoader
+from .BaseModel import BaseModel
+from ..Dataloaders.OLTRDataLoader import OLTRDataLoader
 from ...utils import source_import, class_count, mic_acc_cal, F_measure, shot_acc
 from ...utils.logger import get_logger
 

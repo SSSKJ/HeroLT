@@ -1,5 +1,5 @@
 from . import BaseModel
-from ..Models import LinearModel, solver_dict
+from ..Models.LinearModel import LinearModel, solver_dict
 from ..xbert.rf_linear import Metrics, HierarchicalMLModel, PostProcessor, LabelEmbeddingFactory
 from ..xbert.indexer import Indexer
 from ..xbert import rf_linear

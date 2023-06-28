@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from .BBN_ResNet import res50, bbn_res50
 from .BBN_ResNet_cifar import res32_cifar, bbn_res32_cifar
-from ..Layers import GAP, Identity, FCNorm
+from ..Layers.pooling_ops import GAP, Identity
+from ..Layers.classifier_ops import FCNorm
 
 
 class Network(nn.Module):

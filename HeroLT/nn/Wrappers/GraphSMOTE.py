@@ -1,6 +1,6 @@
-from . import BaseModel
-from ..Dataloaders import GraphDataLoader
-from ..Models import graphSMOTE
+from .BaseModel import BaseModel
+from ..Dataloaders.GraphDataLoader import GraphDataLoader
+from ..Models.graphSMOTE import graphSMOTE
 from ...utils.logger import get_logger
 from ...utils import seed_everything, performance_measure, classification, confusion
 
