@@ -94,11 +94,11 @@ try:
 except Exception as e:
     errors.append('File to load XRTransformer. Packages need to be installed for XRTransformer. Please reload the framework after installing the environment')
     packages.append(e)
-# try:
-#     from .XTransformer import XTransformer
-# except Exception as e:
-#     errors.append('File to load XTransformer. Packages need to be installed for XTransformer. Please reload the framework after installing the environment')
-#     packages.append(e)
+try:
+    from .XTransformer import XTransformer
+except Exception as e:
+    errors.append('File to load XTransformer. Packages need to be installed for XTransformer. Please reload the framework after installing the environment')
+    packages.append(e)
 
 if len(errors) > 0:
     print('----------------------------Fail to load NLP Models----------------------------')
