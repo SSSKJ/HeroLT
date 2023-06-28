@@ -72,6 +72,8 @@ class XTransformer(BaseModel):
 
         config = self.config['train']
 
+        self.load_data('train')
+
         model = LinearModel.train(
             self.X,
             self.Y,
