@@ -43,7 +43,7 @@ class XTransformer(BaseModel):
 
         self.label_name_arr = ['pifa-tfidf-s0', 'pifa-neural-s0', 'text-emb-s0']
         self.model_name_arr = ['bert-large-cased-whole-word-masking', 'roberta-large', 'xlnet-large-cased']
-        self.data_dir = f'{self.base_dir}/data/NLPData/{self.model_name}/{self.dataset_name}'
+        self.data_dir = f'{self.base_dir}/data/NLPData/{self.dataset_name}'
         
 
     def train(self):
