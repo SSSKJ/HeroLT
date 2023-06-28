@@ -67,7 +67,7 @@ class XTransformer(BaseModel):
                 self.logger.info(f'Predicting for {model_name} with {label_name}')
                 # predict final label ranking, using transformer's predicted cluster scores
                 self.__predict()
-                
+
         # final eval
         self.eval()
 
@@ -200,8 +200,8 @@ class XTransformer(BaseModel):
         Yt_pred = model.predict(self.Xt, csr_codes=self.csr_codes, beam_size=config['beam_size'], only_topk=config['only_topk'], cond_prob=cond_prob,)
 
         metric = Metrics.generate(self.Yt, Yt_pred, topk=10)
-        self.logger.log("==== tst_set evaluation ====")
-        self.logger.log(metric)
+        self.logger.info("==== tst_set evaluation ====")
+        self.logger.info(metric)
 
         smat.save_npz(f'{self.ranker_dir}/tst.pred.npz', Yt_pred)
 
@@ -220,16 +220,16 @@ class XTransformer(BaseModel):
                 Y_pred.data = rf_linear.Transform.sigmoid(Y_pred.data)
 
                 Y_pred_list += [Y_pred]
-                self.logger.log("==== Evaluation on {}".format(pred_path))
-                self.logger.log(rf_linear.Metrics.generate(self.Yt, Y_pred))
+                self.logger.info("==== Evaluation on {}".format(pred_path))
+                self.logger.info(rf_linear.Metrics.generate(self.Yt, Y_pred))
 
         if len(Y_pred_list) > 1:
-            self.logger.log("==== Evaluations of Ensembles of All Predictions ====")
+            self.logger.info("==== Evaluations of Ensembles of All Predictions ====")
             for ens in [
                 rf_linear.CsrEnsembler.average,
                 rf_linear.CsrEnsembler.rank_average,
                 rf_linear.CsrEnsembler.round_robin,
             ]:
-                self.logger.log("ens: {}".format(ens.__name__))
-                self.logger.log(rf_linear.Metrics.generate(self.Yt, ens(*Y_pred_list)))
+                self.logger.info("ens: {}".format(ens.__name__))
+                self.logger.info(rf_linear.Metrics.generate(self.Yt, ens(*Y_pred_list)))
 
