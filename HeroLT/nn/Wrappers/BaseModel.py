@@ -2,7 +2,6 @@ import yaml
 import os
 
 from ...data import dataset_list
-from ...utils import special_mkdir
 
 class BaseModel:
 
