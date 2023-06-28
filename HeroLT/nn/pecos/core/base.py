@@ -37,8 +37,6 @@ import scipy.sparse as smat
 from ... import pecos
 from ...pecos.utils import smat_util
 
-LOGGER = logging.getLogger("__name__")
-
 XLINEAR_SOLVERS = {
     "L2R_L2LOSS_SVC_DUAL": 1,
     "L2R_L1LOSS_SVC_DUAL": 3,
@@ -525,7 +523,7 @@ class corelib(object):
 
     def __init__(self, dirname, soname, forced_rebuild=False):
         self.clib_float32 = corelib.load_dynamic_library(
-            dirname, soname + "_float32", forced_rebuild=forced_rebuild
+            dirname, soname, forced_rebuild=forced_rebuild
         )
         self.link_xlinear_methods()
         self.link_sparse_operations()
