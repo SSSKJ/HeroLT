@@ -1,6 +1,6 @@
 1. Configure the corresponding configuration under `HeroLT/configs/XRLinear/config.yaml`
 
-2. Download dataset with commands and put it under `HeroLT/data/NLPData/`. e.g., `HeroLT/data/NLPData/xmc/eurlex-4k`
+2. Download dataset with commands, put it under `HeroLT/data/NLPData/` and change the name to lowercase. e.g., `HeroLT/data/NLPData/xmc/eurlex-4k`
 
    ```shell
    # eurlex-4k, wiki10-31k, amazoncat-13k
@@ -11,7 +11,7 @@
 
    We now support the following dataset: eurlex-4k, wiki10-31k, and amazoncat-13k.
 
-4. Run the following code to reproduce.
+3. Run the following code to reproduce.
 
    ```python
    import sys
@@ -21,5 +21,5 @@
    model.train()
    ```
 
-5. The models, output results and log file will be saved to `HeroLT/outputs/XRLinear/eurlex-4k/` if the dataset you are running is eurlex-4k.
+4. The models, output results and log file will be saved to `HeroLT/outputs/XRLinear/eurlex-4k/` if the dataset you are running is eurlex-4k.
 

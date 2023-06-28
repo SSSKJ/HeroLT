@@ -1,6 +1,6 @@
 1. Configure the corresponding configuration under `HeroLT/configs/XTransformer/config.yaml`
 
-2. Download dataset with the script named `download-data.sh` under `HeroLT/data/NLPData/`  with commands and put it under `HeroLT/data/NLPData`. e.g., `HeroLT/data/NLPData/eurlex-4k`
+2. Download dataset with the script named `download-data.sh` under `HeroLT/data/NLPData/`  with commands, put it under `HeroLT/data/NLPData` and change the name to lowercase . e.g., `HeroLT/data/NLPData/eurlex-4k`
 
    ```shell
    # eurlex-4k, wiki10-31k, amazoncat-13k
@@ -9,7 +9,7 @@
 
    We now support the following dataset: eurlex-4k, wiki10-31k, and amazoncat-13k.
 
-3. Download pretrained models with the script named `download-models.sh` under `HeroLT/output/XTransformer/`  with commands and put it under `HeroLT/output/XTransformer/`. e.g., `HeroLT/output/XTransformer/eurlex-4k`
+3. Download pretrained models with the script named `download-models.sh` under `HeroLT/output/XTransformer/`  with commands, put it under `HeroLT/output/XTransformer/` and change the name to lowercase. e.g., `HeroLT/output/XTransformer/eurlex-4k`
 
    ```shell
    # eurlex-4k, wiki10-31k, amazoncat-13k
