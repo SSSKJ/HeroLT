@@ -8,7 +8,7 @@
  3. **(A3) the heterogeneity of emerging tasks:** it highlights the need to consider the applicability and limitations of existing methods on heterogeneous tasks.
 
 <div  align="center">
- <img src="https://github.com/wanghh7/OpenLT/blob/main/figs/angle.png" width = "700" height = "366" />
+ <img src="https://s2.loli.net/2023/07/19/EHwPQAYdkhquIXS.png" width = "700" height = "366" />
 </div>
 
 
