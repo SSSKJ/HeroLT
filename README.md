@@ -161,7 +161,7 @@ HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/tree/main/HeroLT/d
 
 Cora-Full dataset consists of 19,793 scientific publications classified into one of seventy categories. This dataset exhibits a prominent long-tailed distribution, wherein the number of instances belonging to the head categories far surpasses that of the tail categories. Similarly, Amazon_Eletronics dataset also exhibits long-tailed distribution, where each product is considered as a node belonging to a product category in "Electronics." Despite the emergence of machine learning methods aimed at facilitating accurate classification, further solutions are called due to the challenges of long-tailed distribution. 
 <div  align="center">
- <img src="figs/LT_distribution.png" width = "700" height = "366" />
+ <img src="figs/LT_distribution.png" width = "600" height = "400" />
 </div>
 
 ## Publications
