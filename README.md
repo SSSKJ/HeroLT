@@ -14,7 +14,7 @@
 
 We provide a fair and accessible performance evaluation of 13 state-of-the-art methods on multiple benchmark datasets across multiple tasks using accuracy-based and ranking-based evaluation metrics.
 
-| [Code Structure](#code-structure) | [Quick Start](#quick-start) | [Algorithms](#algorithms) | [Datasets](#datasets) | [License](#license) | [Publications](#publications) | 
+| [Code Structure](#code-structure) | [Quick Start](#quick-start) | [Algorithms](#algorithms) | [Datasets](#datasets) | [Example](#example) | [Publications](#publications) | 
 
 ----
 
@@ -157,9 +157,12 @@ HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/tree/main/HeroLT/d
 | Amazon-Clothing   | Relational      | 77              | 24,919    | 208,279    | 10              | 0.343 | 0.814  |
 | Amazon-Eletronics | Relational      | 167             | 42,318    | 129,430    | 9               | 0.329 | 0.600  |
 
-## License
+## Example
 
-<!-- HeroLT is released under Apache License 2.0. -->
+Cora-Full dataset consists of 19,793 scientific publications classified into one of seventy categories. This dataset exhibits a prominent long-tailed distribution, wherein the number of instances belonging to the head categories far surpasses that of the tail categories. Similarly, Amazon_Eletronics dataset also exhibits long-tailed distribution, where each product is considered as a node belonging to a product category in "Electronics." Despite the emergence of machine learning methods aimed at facilitating accurate classification, further solutions are called due to the challenges of long-tailed distribution. 
+<div  align="center">
+ <img src="figs/LT_distribution.png" width = "700" height = "366" />
+</div>
 
 ## Publications
 <!-- If you find HeroLT useful for your research or development, please cite the following <a href="https://arxiv.org/" target="_blank">paper</a>:
