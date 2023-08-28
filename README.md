@@ -162,7 +162,7 @@ HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/tree/main/HeroLT/d
  Here, we present a motivative application of the recommendation system, which naturally exhibits long-tailed data distributions coupled with data complexity [2] (e.g., tabular data and relational data) and task heterogeneity (e.g., user profiling [1] and recommendation [2]). 
 
 <div  align="center">
-<img src="https://s2.loli.net/2023/08/22/ubi3YA6O7WLqDNe.png" width = "300" height = "300" />
+<img src="https://s2.loli.net/2023/08/22/ubi3YA6O7WLqDNe.png" width = "300" height = "350" />
 </div>
 
 [1] E. Purificato, L. Boratto, and E. W. De Luca, “Do graph neural networks build fair user models? assessing disparate impact and mistreatment in behavioural user profiling”. CIKM 2022.
