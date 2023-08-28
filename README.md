@@ -159,10 +159,15 @@ HeroLT includes [14 datasets](https://github.com/SSSKJ/HeroLT/tree/main/HeroLT/d
 
 ## Example
 
-Cora-Full dataset consists of 19,793 scientific publications classified into one of seventy categories. This dataset exhibits a prominent long-tailed distribution, wherein the number of instances belonging to the head categories far surpasses that of the tail categories. Similarly, Amazon_Eletronics dataset also exhibits long-tailed distribution, where each product is considered as a node belonging to a product category in "Electronics." Despite the emergence of machine learning methods aimed at facilitating accurate classification, further solutions are called due to the challenges of long-tailed distribution. 
+ Here, we present a motivative application of the recommendation system, which naturally exhibits long-tailed data distributions coupled with data complexity [2] (e.g., tabular data and relational data) and task heterogeneity (e.g., user profiling [1] and recommendation [2]). 
+
 <div  align="center">
- <img src="figs/LT_distribution.png" width = "800" height = "300" />
+<img src="https://s2.loli.net/2023/08/22/ubi3YA6O7WLqDNe.png" width = "350" height = "300" />
 </div>
+
+[1] E. Purificato, L. Boratto, and E. W. De Luca, “Do graph neural networks build fair user models? assessing disparate impact and mistreatment in behavioural user profiling”. CIKM 2022.
+
+[2] F. Liu, Z. Cheng, L. Zhu, C. Liu, and L. Nie, “An attribute-aware attentive GCN model for attribute missing in recommendation”. IEEE Transactions on Knowledge and Data Engineering 2022.
 
 ## Publications
 <!-- If you find HeroLT useful for your research or development, please cite the following <a href="https://arxiv.org/" target="_blank">paper</a>:
