@@ -1,6 +1,6 @@
 from ...utils import source_import
 from .CVModel import CVModel
-from ..Dataloaders.DecouplingDataLoader import DecouplingDataLoader
+from ..Dataloaders.ImageDataLoader import ImageDataLoader
 from ..Samplers.ClassAwareSampler import ClassAwareSampler
 from ...utils import torch2numpy, mic_acc_cal, get_priority
 
@@ -75,8 +75,9 @@ class Decoupling(CVModel):
             splits = ['train', 'train_plain', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            self.__training_data = {x: DecouplingDataLoader.load_data(data_root = f'{self.base_dir}/data/CVData/{dataset}',
-                                            dataset = dataset, 
+            self.__training_data = {x: ImageDataLoader.load_data(data_root = f'{self.base_dir}/data/CVData/{dataset}',
+                                            dataset = dataset,
+                                            model_name = self.__class__.__name__, 
                                             phase = x, 
                                             batch_size = training_opt['batch_size'],
                                             logger = self.logger,
@@ -107,8 +108,9 @@ class Decoupling(CVModel):
 
             splits.append('train_plain')
 
-            data = {x: DecouplingDataLoader.load_data(data_root = f'{self.base_dir}/data/CVData/{dataset}',
+            data = {x: ImageDataLoader.load_data(data_root = f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset = dataset, 
+                                            model_name = self.__class__.__name__,
                                             phase = x,
                                             batch_size = training_opt['batch_size'],
                                             logger = self.logger,

@@ -1,5 +1,5 @@
 from .BaseModel import BaseModel
-from ..Dataloaders.OLTRDataLoader import OLTRDataLoader
+from ..Dataloaders.ImageDataLoader import ImageDataLoader
 from ...utils import source_import, class_count, mic_acc_cal, F_measure, shot_acc
 from ...utils.logger import get_logger
 
@@ -275,8 +275,9 @@ class OLTR(BaseModel):
             else:
                 sampler_dic = None
 
-            self.__training_data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
+            self.__training_data = {x: ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
                                         dataset=self.dataset_name, 
+                                        model_name = self.__class__.__name__, 
                                         phase=x, 
                                         batch_size=training_opt['batch_size'],
                                         logger = self.logger,
@@ -295,8 +296,9 @@ class OLTR(BaseModel):
             self.logger.info('Under testing phase, we load training data simply to calculate \
                 training data number for each class.')
 
-            data = {x: OLTRDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
+            data = {x: ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}', 
                                         dataset=dataset, 
+                                        model_name = self.__class__.__name__, 
                                         phase=x,
                                         batch_size=training_opt['batch_size'],
                                         sampler_dic=None, 
