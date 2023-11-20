@@ -166,21 +166,26 @@ class CIFAR10Policy(object):
 
 class LT_Dataset(Dataset):
 
-    def __init__(self, root, txt, dataset, transform=None, meta=False):
+    def __init__(self, root, txt, dataset, transform=None, meta=False, **kwargs):
         self.img_path = []
         self.labels = []
         self.transform = transform
+        self.root = root
+        self.txt = txt
+        self.dataset = dataset
 
-        with open(txt) as f:
+    def load(self):
+
+        with open(self.txt) as f:
             for line in f:
-                self.img_path.append(os.path.join(root, line.split()[0]))
+                self.img_path.append(os.path.join(self.root, line.split()[0]))
                 self.labels.append(int(line.split()[1]))
 
         # save the class frequency
-        if 'train' in txt and not meta:
+        if 'train' in self.txt and not self.meta:
             if not os.path.exists('cls_freq'):
                 os.makedirs('cls_freq')
-            freq_path = os.path.join('cls_freq', dataset + '.json')
+            freq_path = os.path.join('cls_freq', self.dataset + '.json')
             self.img_num_per_cls = [0 for _ in range(max(self.labels)+1)]
             for cls in self.labels:
                 self.img_num_per_cls[cls] += 1
