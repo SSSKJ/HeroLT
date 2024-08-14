@@ -1,5 +1,5 @@
 from .BaseModel import BaseModel
-from ..Dataloaders.TDEDataLoader import TDEDataLoader
+from ..Dataloaders.ImageDataLoader import ImageDataLoader
 from ..Samplers.ClassAwareSampler import ClassAwareSampler
 from ..Schedulers.WarmupMultiStepLR import WarmupMultiStepLR
 from ...utils.logger import Logger
@@ -143,8 +143,9 @@ class TDE(BaseModel):
             splits = ['train', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
+            data = {x: ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
+                                            model_name = self.__class__.__name__, 
                                             phase=x, 
                                             batch_size=training_opt['batch_size'],
                                             logger = self.logger,
@@ -175,8 +176,9 @@ class TDE(BaseModel):
                 splits = ['train', 'val']
                 self.test_split = 'val'
 
-            data = {x: TDEDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
+            data = {x: ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                     dataset=dataset, 
+                                    model_name = self.__class__.__name__, 
                                     phase=x,
                                     batch_size=training_opt['batch_size'],
                                     logger = self.logger,

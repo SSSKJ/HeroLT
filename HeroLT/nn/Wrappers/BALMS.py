@@ -1,7 +1,7 @@
 from ...utils import source_import
 from .CVModel import CVModel
 from ..Schedulers.CosineAnnealingLRWarmup import CosineAnnealingLRWarmup
-from ..Dataloaders.BALMSDataLoader import BALMSDataLoader
+from ..Dataloaders.ImageDataLoader import ImageDataLoader
 from ...utils import torch2numpy, mic_acc_cal, get_priority
 
 import torch
@@ -372,8 +372,9 @@ class BALMS(CVModel):
             splits = ['train', 'train_plain', 'val']
             if dataset not in ['inatural2018', 'imagenet_lt']:
                 splits.append('test')
-            self.__training_data = {x: BALMSDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
-                                            dataset=dataset, 
+            self.__training_data = {x: ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
+                                            dataset=dataset,
+                                            model_name = self.__class__.__name__,
                                             phase=x, 
                                             batch_size=self.training_opt['batch_size'],
                                             logger=self.logger,
@@ -388,8 +389,9 @@ class BALMS(CVModel):
                         'params': {'is_infinite': True}
                     }
                 # use Class Balanced Sampler to create meta set
-                self.__training_data['meta'] = BALMSDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
+                self.__training_data['meta'] = ImageDataLoader.load_data(data_root=f'{self.base_dir}/data/CVData/{dataset}',
                                             dataset=dataset, 
+                                            model_name = self.__class__.__name__,
                                             phase='train' if 'CIFAR' in dataset else 'val',
                                             batch_size=sampler_defs.get('meta_batch_size', self.training_opt['batch_size'], ),
                                             logger=self.logger,
@@ -428,7 +430,6 @@ class BALMS(CVModel):
                                             batch_size=self.training_opt['batch_size'],
                                             logger=self.logger,
                                             sampler_dic=None, 
-                                            test_open=False,
                                             num_workers=self.training_opt['num_workers'],
                                             shuffle=False,
                                             cifar_imb_ratio=self.training_opt['cifar_imb_ratio'] if 'cifar_imb_ratio' in self.training_opt else None)

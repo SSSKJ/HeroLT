@@ -13,7 +13,7 @@ solver_type: L2R_L2LOSS_SVC_DUAL
 Cp: 1.0
 Cn: 1.0
 bias: 1.0
-negative_sampling: man
+negative_sampling: tfn
 threshold: 0.1
 max_nonzeros_per_label: 0
 ## For Predicting

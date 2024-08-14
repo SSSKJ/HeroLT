@@ -7,13 +7,18 @@ from PIL import Image
 # Dataset definiation from Decoupling
 class LT_Dataset(Dataset):
     
-    def __init__(self, root, txt, transform=None):
+    def __init__(self, root, txt, transform=None, **kwargs):
         self.img_path = []
         self.labels = []
         self.transform = transform
-        with open(txt) as f:
+        self.root = root
+        self.txt = txt
+
+
+    def load(self):
+        with open(self.txt) as f:
             for line in f:
-                self.img_path.append(os.path.join(root, line.split()[0]))
+                self.img_path.append(os.path.join(self.root, line.split()[0]))
                 self.labels.append(int(line.split()[1]))
         
     def __len__(self):

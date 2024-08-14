@@ -16,29 +16,35 @@ Customized by Kaihua Tang
 
 class LT_Dataset(Dataset):
     
-    def __init__(self, root, txt, transform=None, template=None, top_k=None):
+    def __init__(self, root, txt, transform=None, template=None, top_k=None, **kwargs):
         self.img_path = []
         self.labels = []
         self.transform = transform
-        with open(txt) as f:
+        self.root = root
+        self.txt = txt
+        self.template = template
+        self.top_k = top_k
+
+    def load(self):
+        with open(self.txt) as f:
             for line in f:
-                self.img_path.append(os.path.join(root, line.split()[0]))
+                self.img_path.append(os.path.join(self.root, line.split()[0]))
                 self.labels.append(int(line.split()[1]))
         # select top k class
-        if top_k:
+        if self.top_k:
             # only select top k in training, in case train/val/test not matching.
-            if 'train' in txt:
+            if 'train' in self.txt:
                 max_len = max(self.labels) + 1
                 dist = [[i, 0] for i in range(max_len)]
                 for i in self.labels:
                     dist[i][-1] += 1
                 dist.sort(key = lambda x:x[1], reverse=True)
                 # saving
-                torch.save(dist, template + '_top_{}_mapping'.format(top_k))
+                torch.save(dist, self.template + '_top_{}_mapping'.format(self.top_k))
             else:
                 # loading
-                dist = torch.load(template + '_top_{}_mapping'.format(top_k))
-            selected_labels = {item[0]:i for i, item in enumerate(dist[:top_k])}
+                dist = torch.load(self.template + '_top_{}_mapping'.format(self.top_k))
+            selected_labels = {item[0]:i for i, item in enumerate(dist[:self.top_k])}
             # replace original path and labels
             self.new_img_path = []
             self.new_labels = []
