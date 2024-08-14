@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import pairwise_distances
 
 def Imbalance_factor(labels):
     num_labels = labels.max() + 1
@@ -54,6 +57,49 @@ def CCDF(labels):
     plt.legend(fontsize=fontSize)
     plt.show()
 
+def imbalance_impact_knn(dataset, labels):
+    # the majority class is denoted as negative and the minority class as positive
+    class_counts = torch.bincount(labels)
+    majority_class = torch.argmax(class_counts).item()
+    minority_class = torch.argmin(class_counts).item()
+    majority_indices = (labels == majority_class).nonzero(as_tuple=True)[0]
+    minority_indices = (labels == minority_class).nonzero(as_tuple=True)[0]
+    selected_indices = torch.cat((majority_indices, minority_indices))
+    data = dataset[selected_indices].numpy()
+    label = labels[selected_indices].numpy()
+    label[labels[selected_indices] == majority_class] = -1
+    label[labels[selected_indices] == minority_class] = 1
+
+    pos_num = sum(label == 1)
+    neg_num = sum(label == -1)
+    pos_idx = np.nonzero(label == 1)
+    neg_idx = np.nonzero(label == -1)
+    pos_data = data[pos_idx]
+    rr = neg_num / pos_num
+    k = 5
+
+    nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm='ball_tree').fit(data)
+    distances, knn_idx = nbrs.kneighbors(pos_data)
+
+    p2 = np.zeros(pos_num)
+    p2old = np.zeros(pos_num)
+    knn_idx = np.delete(knn_idx, 0, 1)
+    for i in range(pos_num):
+        p2[i] = np.intersect1d(knn_idx[i], neg_idx).size / k
+        p2old[i] = p2[i]
+        if p2[i] == 1:
+            dist = pairwise_distances(pos_data[i].reshape(1, -1), data).reshape(-1)
+            sort_idx = np.argsort(dist)
+            nearest_pos = np.nonzero(label[sort_idx] == 1)[0][1]
+            p2[i] = (nearest_pos - 1) / nearest_pos
+    p1 = 1 - p2
+    # ibi3 = p2 * rr * p1 / (p2 + rr * p1)
+    # ibi3 = p2 * (rr * p1 / (p2 + rr * p1) - p1)
+    ibi3 = (rr * p1 / (p2 + rr * p1) - p1)
+
+    bi3 = np.mean(ibi3)
+    print('The bi3 value is %.4f' % bi3)
+
 if __name__ == "__main__":
     print("size: ", len(dataset.labels))
     labels = dataset.labels
@@ -61,5 +107,6 @@ if __name__ == "__main__":
     Gini(labels)
     LT_Ratio(labels, 0.8)
     CCDF(labels)
+    imbalance_impact_knn(dataset.features, labels)
 
 
